@@ -9,8 +9,8 @@ bl_info = {
     "location": "File > Import-Export > HaydeeTools",
     "description": "Import-Export scripts for Haydee",
     "warning": "",
-    "wiki_url": "",
-    "tracker_url": "",
+	"wiki_url":    "https://github.com/johnzero7/HaydeeTools",
+	"tracker_url": "https://github.com/johnzero7/HaydeeTools/issues",
     "category": "Import-Export",
 }
 
@@ -21,11 +21,13 @@ if "bpy" in locals():
     from . import HaydeeImporter
     from . import HaydeeUtils
     from . import HaydeeNodeMat
+    from . import addon_updater_ops
     # Reload
     imp.reload(HaydeeExporter)
     imp.reload(HaydeeImporter)
     imp.reload(HaydeeUtils)
     imp.reload(HaydeeNodeMat)
+    imp.reload(addon_updater_ops)
     # print("Reloading Libraries")
 else:
     import bpy
@@ -33,6 +35,7 @@ else:
     from . import HaydeeImporter
     from . import HaydeeUtils
     from . import HaydeeNodeMat
+    from . import addon_updater_ops
     # print("Loading Libraries")
 
 
@@ -188,20 +191,64 @@ class HaydeeToolsImportPanel(bpy.types.Panel):
         r1c2.operator('haydee_tools.fit_to_mesh', text='To Mesh')
 
 
+class DemoPreferences(bpy.types.AddonPreferences):
+    bl_idname = __package__
+
+
+    # addon updater preferences from `__init__`, be sure to copy all of them
+    auto_check_update = bpy.props.BoolProperty(
+        name = "Auto-check for Update",
+        description = "If enabled, auto-check for updates using an interval",
+        default = False,
+    )
+    updater_intrval_months = bpy.props.IntProperty(
+        name='Months',
+        description = "Number of months between checking for updates",
+        default=0,
+        min=0
+    )
+    updater_intrval_days = bpy.props.IntProperty(
+        name='Days',
+        description = "Number of days between checking for updates",
+        default=7,
+        min=0,
+    )
+    updater_intrval_hours = bpy.props.IntProperty(
+        name='Hours',
+        description = "Number of hours between checking for updates",
+        default=0,
+        min=0,
+        max=23
+    )
+    updater_intrval_minutes = bpy.props.IntProperty(
+        name='Minutes',
+        description = "Number of minutes between checking for updates",
+        default=0,
+        min=0,
+        max=59
+    )
+
+
+    def draw(self, context):
+        layout = self.layout
+        addon_updater_ops.update_settings_ui(self, context)
+
 #
 # Registration
 #
 
 
 def register():
-    print('Registering %s' % __name__)
+    # print('Registering %s' % __name__)
     bpy.utils.register_module(__name__)
     HaydeeExporter.register()
     HaydeeImporter.register()
+    addon_updater_ops.register(bl_info)
 
 
 def unregister():
-    print('Unregistering %s' % __name__)
+    # print('Unregistering %s' % __name__)
+    addon_updater_ops.unregister()
     HaydeeExporter.unregister()
     HaydeeImporter.unregister()
     bpy.utils.unregister_module(__name__)
