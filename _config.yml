@@ -2,3 +2,8 @@ theme: jekyll-theme-cayman
 title: Haydee Blender Tools
 description: An Addon For Blender To Import/Export Haydee Game assets
 show_downloads: True
+
+xbaseurl: "/HaydeeTools" #  the subpath of your site, e.g. /blog
+xurl: "http://johnzero7.github.io" # the base hostname & protocol for your site
+github_username:  johnzero7
+paginate: 5
