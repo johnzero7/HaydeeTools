@@ -1,10 +1,14 @@
+---
+---
+
 /*jslint browser: true*/
 /*global $, jQuery, alert*/
 
 "use strict";
 
 function GetLatestReleaseInfo() {
-    $.getJSON("https://api.github.com/repos/johnzero7/HaydeeTools/releases/latest").done(function (release) {
+    api_url = "{{site.github.api_url}}/repos/{{site.github.owner_name}}/{{site.github.repository_name}}/releases/latest"
+    $.getJSON(api_url).done(function (release) {
         var asset = release.assets[0];
         var downloadCount = 0;
         for (var i = 0; i < release.assets.length; i++) {
