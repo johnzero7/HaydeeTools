@@ -5,7 +5,7 @@ import struct
 import math
 import io
 import re
-from HaydeeTools.HaydeeUtils import boneRenameHaydee, d, find_armature, materials_list
+from .HaydeeUtils import boneRenameHaydee, d, find_armature, materials_list
 from progress_report import ProgressReport, ProgressReportSubstep
 
 # ExportHelper is a helper class, defines filename and

@@ -5,8 +5,8 @@ import struct
 import math
 import io
 import codecs
-from HaydeeTools.HaydeeUtils import boneRenameBlender, d, find_armature, decodeText
-from HaydeeTools.HaydeeNodeMat import create_material
+from .HaydeeUtils import boneRenameBlender, d, find_armature, decodeText
+from .HaydeeNodeMat import create_material
 from progress_report import ProgressReport, ProgressReportSubstep
 
 # ExportHelper is a helper class, defines filename and
