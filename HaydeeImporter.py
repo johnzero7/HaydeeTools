@@ -1593,7 +1593,7 @@ def read_skin(operator, context, filepath, armature_ob):
                     editBone.tail = Vector(editBone.head) + Vector((0, 0, 10))
                     pos = Vector(mat.to_3x3() * mat.row[3].xyz)
                     mat.translation = (-pos.x, -pos.y, -pos.z)
-                    print(boneName,mat)
+                    #print(boneName,mat)
                     editBone.matrix = swap_rows * mat * swap_cols
                 progress.step()
 
@@ -1707,15 +1707,14 @@ def read_material(operator, context, filepath):
             matName = os.path.splitext(matName)[0]
 
 
-            print('diffuseMap',diffuseMap)
             if diffuseMap:
-                diffuseMap = haydeeFilepath(filepath, diffuseMap)
+                diffuseMap = haydeeFilepath(basedir, diffuseMap)
             if normalMap:
-                normalMap = haydeeFilepath(filepath, normalMap)
+                normalMap = haydeeFilepath(basedir, normalMap)
             if specularMap:
-                specularMap = haydeeFilepath(filepath, specularMap)
+                specularMap = haydeeFilepath(basedir, specularMap)
             if emissionMap:
-                emissionMap = haydeeFilepath(filepath, emissionMap)
+                emissionMap = haydeeFilepath(basedir, emissionMap)
 
             create_material(obj, matName, diffuseMap, normalMap, specularMap, emissionMap)
 
@@ -1743,10 +1742,16 @@ class ImportHaydeeMaterial(Operator, ImportHelper):
 def haydeeFilepath(mainpath, filepath):
     path = filepath
     if not os.path.isabs(filepath):
+        #Current Folder
+        currPath = os.path.relpath(filepath, r'outfits')
         basedir = os.path.dirname(mainpath)
-        idx = basedir.lower().find(r'\outfit')
-        path = basedir[:idx]
-        path = os.path.join(path, filepath)
+        path = os.path.join(basedir, currPath)
+        if not (os.path.isfile(path)):
+            #Outfit Folder
+            path = filepath
+            idx = basedir.lower().find(r'\outfit')
+            path = basedir[:idx]
+            path = os.path.join(path, filepath)
     return path
 
 
