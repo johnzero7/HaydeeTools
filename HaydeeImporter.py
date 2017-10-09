@@ -1363,7 +1363,7 @@ def read_outfit(operator, context, filepath):
             # Read model data
             for lineData in data:
                 line = stripLine(lineData)
-                line_split = line.split()
+                line_split = line.split(maxsplit=1)
                 line_start = None
                 i = len(line_split)
                 if (i == 0):
@@ -1679,7 +1679,7 @@ def read_material(operator, context, filepath):
             # Read model data
             for lineData in data:
                 line = stripLine(lineData)
-                line_split = line.split()
+                line_split = line.split(maxsplit=1)
                 line_start = None
                 i = len(line_split)
                 if (i == 0):
