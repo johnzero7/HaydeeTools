@@ -11,6 +11,6 @@ more info at:
 http://johnzero7.github.io/HaydeeTools/
 
 
-Difuse and Emissive textures are of the common kind.
-Normal maps are: RRRG (Normals can be converted from Edith. Tool=>Import texture. Format NormalMap) 
-Specular maps are: R=Roughness, G=Specular intensity, B=Metallic (not properly implemented leave 0)
+Difuse and Emissive textures are of the common kind.<br />
+Normal maps are: RRRG (B is calculated. Normals can be converted from Edith. Tool=>Import texture. Format NormalMap)<br />
+Specular maps are: R=Roughness, G=Specular intensity, B=Metallic (not properly implemented in Haydee. Leave 0)<br />
