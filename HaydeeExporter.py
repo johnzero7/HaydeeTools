@@ -5,19 +5,18 @@ import struct
 import math
 import io
 import re
-from .HaydeeUtils import boneRenameHaydee, d, find_armature, materials_list
+from .HaydeeUtils import boneRenameHaydee, d, find_armature, materials_list, stripName, NAME_LIMIT
 from progress_report import ProgressReport, ProgressReportSubstep
 
 # ExportHelper is a helper class, defines filename and
 # invoke() function which calls the file selector.
-from bpy_extras.io_utils import ExportHelper, ImportHelper
+from bpy_extras.io_utils import ExportHelper
 from bpy.props import StringProperty, BoolProperty, EnumProperty
 from bpy.types import Operator
 
 from mathutils import *
 from math import pi
 
-NAME_LIMIT = 31
 
 # ------------------------------------------------------------------------------
 #  .dskel exporter
@@ -40,7 +39,7 @@ def write_dskel(operator, context, filepath):
         q = (q * r)
         q = Quaternion([-q.w, q.x, q.y, -q.z])
 
-        bone_name = boneRenameHaydee(bone.name[:NAME_LIMIT])
+        bone_name = boneRenameHaydee(bone.name)
 
         bone_side = bone.length / 4
         f.write("\tbone %s\n\t{\n" % bone_name)
@@ -49,7 +48,7 @@ def write_dskel(operator, context, filepath):
         f.write("\t\tlength %s;\n" % d(bone.length))
 
         if bone.parent:
-            parent_name = boneRenameHaydee(bone.parent.name[:NAME_LIMIT])
+            parent_name = boneRenameHaydee(bone.parent.name)
             f.write("\t\tparent %s;\n" % parent_name)
             head = bone.head_local
             head = Vector((head.x, head.z, head.y))
@@ -93,7 +92,7 @@ def write_skel(operator, context, filepath):
 
     bones = armature.data.bones
 
-    f = open(filepath, 'wb', encoding='utf-8')
+    f = open(filepath, 'wb')
     f.write("HD_DATA_TXT 300\n\n")
     f.write("skeleton %d\n{\n" % len(bones))
     r = Quaternion([0, 0, 1], -pi/2)
@@ -103,7 +102,7 @@ def write_skel(operator, context, filepath):
         q = (q * r)
         q = Quaternion([-q.w, q.x, q.y, -q.z])
 
-        bone_name = boneRenameHaydee(bone.name[:NAME_LIMIT])
+        bone_name = boneRenameHaydee(bone.name)
 
         bone_side = bone.length / 4
         f.write("\tbone %s\n\t{\n" % bone_name)
@@ -112,7 +111,7 @@ def write_skel(operator, context, filepath):
         f.write("\t\tlength %s;\n" % d(bone.length))
 
         if bone.parent:
-            parent_name = boneRenameHaydee(bone.parent.name[:NAME_LIMIT])
+            parent_name = boneRenameHaydee(bone.parent.name)
             f.write("\t\tparent %s;\n" % parent_name)
             head = bone.head_local
             head = Vector((head.x, head.z, head.y))
@@ -172,7 +171,7 @@ def write_dpose(operator, context, filepath):
             q = Quaternion([q.z, -q.y, q.x, -q.w])
 
         f.write("\ttransform %s %s %s %s %s %s %s %s;\n" % (
-            bone.name[:NAME_LIMIT], \
+            boneRenameHaydee(bone.name), \
             d(-head.x), d(head.y), d(-head.z),
             d(q.x), d(-q.w), d(q.y), d(q.z)))
 
@@ -213,7 +212,7 @@ def write_dmot(operator, context, filepath):
 
     lines = {}
     for bone in bones:
-        name = boneRenameHaydee(bone.name[:NAME_LIMIT])
+        name = boneRenameHaydee(bone.name)
         lines[name] = []
 
     r = Quaternion([0, 0, 1], pi/2)
@@ -232,7 +231,7 @@ def write_dmot(operator, context, filepath):
                 q = (bone.parent.matrix.to_3x3().inverted() * bone.matrix.to_3x3()).to_quaternion()
                 q = Quaternion([-q.z, -q.y, q.x, -q.w])
 
-            name = boneRenameHaydee(bone.name[:NAME_LIMIT])
+            name = boneRenameHaydee(bone.name)
             lines[name].append("\t\tkey %s %s %s %s %s %s %s;\n" % (
                 d(-head.x), d(head.y), d(-head.z),
                 d(q.x), d(q.w), d(q.y), d(q.z)))
@@ -247,7 +246,7 @@ def write_dmot(operator, context, filepath):
     f.write("\tnumFrames %d;\n" % keyframeCount)
     f.write("\tframeRate %g;\n" % context.scene.render.fps)
     for bone in bones:
-        name = boneRenameHaydee(bone.name[:NAME_LIMIT])
+        name = boneRenameHaydee(bone.name)
         f.write("\ttrack %s\n\t{\n" % name)
         f.write("".join(lines[name]))
         f.write("\t}\n")
@@ -425,14 +424,14 @@ def write_dmesh(operator, context, filepath, export_skeleton, \
                     group_name = ob.name + '_' + mat.name
                 else:
                     group_name = ob.name
-                group_name = group_name[:NAME_LIMIT]
                 regex=re.compile('^[0-9]')
                 if regex.match(group_name):
                     group_name = 'x' + group_name
+                group_name = stripName(group_name)
+                group_name = group_name[:NAME_LIMIT]
 #                if not group_name:
 #                    operator.report({'ERROR'}, "Mesh " + ob.name + ", no group name")
 #                    continue
-
                 print(group_name, 'count', count)
                 if group_name in groups_output:
                     group_output = groups_output[group_name]
@@ -477,10 +476,11 @@ def write_dmesh(operator, context, filepath, export_skeleton, \
                         group_name = ob.name + '_' + mat.name
                     else:
                         group_name = ob.name
-                    group_name = group_name[:NAME_LIMIT]
                     regex=re.compile('^[0-9]')
                     if regex.match(group_name):
                         group_name = 'x' + group_name
+                    group_name = stripName(group_name)
+                    group_name = group_name[:NAME_LIMIT]
 
 #                    if not group_name:
 #                        operator.report({'ERROR'}, "Mesh " + ob.name + ", no group name")
@@ -515,13 +515,13 @@ def write_dmesh(operator, context, filepath, export_skeleton, \
 
             # Export skeleton
             if export_skeleton:
-                for modifier in ob.modifiers:
-                    if modifier.type == 'ARMATURE' and modifier.object:
+                for x in range(1):
+                    if ob.find_armature():
 
-                        print("Exporting armature: " + modifier.object.name)
+                        print("Exporting armature: " + ob.find_armature().name)
 
                         if armature == None:
-                            armature = modifier.object
+                            armature = ob.find_armature()
                             bones = armature.data.bones
                             mat = armature.matrix_world
 
@@ -536,12 +536,12 @@ def write_dmesh(operator, context, filepath, export_skeleton, \
                                 bone_indexes[bone.name[:NAME_LIMIT]] = bone_index
                                 bone_index += 1
 
-                                bone_name = boneRenameHaydee(bone.name[:NAME_LIMIT])
+                                bone_name = boneRenameHaydee(bone.name)
 
                                 #print("Bone %s quaternion: %s" % (bone.name, bone.matrix.to_quaternion() * r))
                                 joints_output.append("\t\tjoint %s\n\t\t{\n" % bone_name)
                                 if bone.parent:
-                                    parent_name = boneRenameHaydee(bone.parent.name[:NAME_LIMIT])
+                                    parent_name = boneRenameHaydee(bone.parent.name)
                                     joints_output.append("\t\t\tparent %s;\n" % parent_name)
                                     q = (bone.parent.matrix_local.to_3x3().inverted() * bone.matrix_local.to_3x3()).to_quaternion()
                                     q = Quaternion([q.w, -q.y, q.x, q.z])
@@ -558,7 +558,7 @@ def write_dmesh(operator, context, filepath, export_skeleton, \
                                 joints_output.append("\t\t}\n")
                             joints_output.append("\t}\n")
 
-                        elif armature.name != modifier.object.name:
+                        elif armature.name != ob.find_armature().name:
                             operator.report({'ERROR'}, "Multiple armatures present, please select only one")
                             continue
 
@@ -719,40 +719,57 @@ class ExportHaydeeDMesh(Operator, ExportHelper):
                 self.ignore_hidden, self.material)
 
 
-
-# ------------------------------------------------------------------------------
+# --------------------------------------------------------------------------------
 #  Initialization & menu
+# --------------------------------------------------------------------------------
+class HaydeeExportSubMenu(bpy.types.Menu):
+    bl_idname = "OBJECT_MT_haydee_export_submenu"
+    bl_label = "Haydee"
+
+    def draw(self, context):
+        layout = self.layout
+        layout.operator(ExportHaydeeDMesh.bl_idname, text="Haydee DMesh (.dmesh)")
+        layout.operator(ExportHaydeeDMotion.bl_idname, text="Haydee DMotion (.dmot)")
+        layout.operator(ExportHaydeeDSkel.bl_idname, text="Haydee DSkel (.dskel)")
+        #layout.operator(ExportHaydeeSkel.bl_idname, text="Haydee Skel (.skel)")
+        layout.operator(ExportHaydeeDPose.bl_idname, text="Haydee DPose (.dpose)")
+
+
+def menu_func_export(self, context):
+    self.layout.menu(HaydeeExportSubMenu.bl_idname, icon_value=custom_icons["haydee_icon"].icon_id)
+
+
 # ------------------------------------------------------------------------------
+#  Custom Icons
+# ------------------------------------------------------------------------------
+custom_icons = {}
 
-def menu_func_export_dmesh(self, context):
-    self.layout.operator(ExportHaydeeDMesh.bl_idname, text="Haydee DMesh (.dmesh)")
-
-def menu_func_export_dmotion(self, context):
-    self.layout.operator(ExportHaydeeDMotion.bl_idname, text="Haydee DMotion (.dmot)")
-
-def menu_func_export_dskel(self, context):
-    self.layout.operator(ExportHaydeeDSkel.bl_idname, text="Haydee DSkel (.dskel)")
-
-def menu_func_export_skel(self, context):
-    self.layout.operator(ExportHaydeeSkel.bl_idname, text="Haydee Skel (.skel)")
-
-def menu_func_export_dpose(self, context):
-    self.layout.operator(ExportHaydeeDPose.bl_idname, text="Haydee DPose (.dpose)")
+def registerCustomIcon():
+    import bpy.utils.previews
+    global custom_icons
+    custom_icons = bpy.utils.previews.new()
+    script_path = os.path.dirname(__file__)
+    icons_dir = os.path.join(script_path, "icons")
+    custom_icons.load("haydee_icon", os.path.join(icons_dir, "icon.png"), 'IMAGE')
 
 
+def unregisterCustomIcon():
+    global custom_icons
+    bpy.utils.previews.remove(custom_icons)
+
+
+# ------------------------------------------------------------------------------
+#  Register
+# ------------------------------------------------------------------------------
 def register():
-    bpy.types.INFO_MT_file_export.append(menu_func_export_dmesh)
-    bpy.types.INFO_MT_file_export.append(menu_func_export_skel)
-    bpy.types.INFO_MT_file_export.append(menu_func_export_dskel)
-    bpy.types.INFO_MT_file_export.append(menu_func_export_dpose)
-    bpy.types.INFO_MT_file_export.append(menu_func_export_dmotion)
+    bpy.types.INFO_MT_file_export.append(menu_func_export)
+    registerCustomIcon()
+
 
 def unregister():
-    bpy.types.INFO_MT_file_export.remove(menu_func_export_dmesh)
-    bpy.types.INFO_MT_file_export.remove(menu_func_export_skel)
-    bpy.types.INFO_MT_file_export.remove(menu_func_export_dskel)
-    bpy.types.INFO_MT_file_export.remove(menu_func_export_dpose)
-    bpy.types.INFO_MT_file_export.remove(menu_func_export_dmotion)
+    bpy.types.INFO_MT_file_export.remove(menu_func_export)
+    unregisterCustomIcon()
+
 
 if __name__ == "__main__":
     register()

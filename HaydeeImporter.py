@@ -9,9 +9,9 @@ from .HaydeeUtils import boneRenameBlender, d, find_armature, decodeText
 from .HaydeeNodeMat import create_material
 from progress_report import ProgressReport, ProgressReportSubstep
 
-# ExportHelper is a helper class, defines filename and
+# ImportHelper is a helper class, defines filename and
 # invoke() function which calls the file selector.
-from bpy_extras.io_utils import ExportHelper, ImportHelper
+from bpy_extras.io_utils import ImportHelper
 from bpy.props import StringProperty, BoolProperty, EnumProperty
 from bpy.types import Operator
 
@@ -143,7 +143,7 @@ def read_skel(operator, context, filepath):
                 joint_data[index]={'parent':parent,
                         'twistX':twistX, 'twistY':twistY,
                         'swingX':swingX, 'swingY':swingY,
-                        'matrix': matrix}
+                        'matrix': mat}
 
             for n in range(slots_count):
                 offset = headerSize + (BONE_SIZE * boneCount) + (JOINT_SIZE * joints_count) + (SLOTS_SIZE * n)
@@ -160,7 +160,7 @@ def read_skel(operator, context, filepath):
                               (f2, f6, f10, f14),
                               (f3, f7, f11, f15),
                               (f4, f8, f12, f16)))
-                slots_data[index] = {'name': name, 'matrix': mat}
+                slot_data[index] = {'name': name, 'matrix': mat}
 
             for n in range(fixes_count):
                 offset = headerSize + (BONE_SIZE * boneCount) + (JOINT_SIZE * joints_count) + (SLOTS_SIZE * slots_count) + (FIXES_SIZE * n)
@@ -282,6 +282,12 @@ def read_skel(operator, context, filepath):
                     pose_bone.bone.layers[0] = False
 
                     if (type == 1): # TARGET
+                        groupName='TARGET'
+                        boneGroup = armature_ob.pose.bone_groups.get(groupName)
+                        if not boneGroup:
+                            boneGroup = armature_ob.pose.bone_groups.new(groupName)
+                            boneGroup.color_set = 'THEME15'
+                        pose_bone.bone_group = boneGroup
                         XY = bool(flags & 0b0001) # fix order YZ
                         XY = bool(flags & 0b0010) # fix order ZY
                         constraint = pose_bone.constraints.new('DAMPED_TRACK')
@@ -289,7 +295,7 @@ def read_skel(operator, context, filepath):
                         constraint.target = armature_ob
                         constraint.subtarget = target_name
 
-                    if (type == 2): # SMOOTH
+                    if (type == 2 and 0==1): # SMOOTH
                         NEGY = bool(flags & 0b0001) # fix order NEGY
                         NEGZ = bool(flags & 0b0010) # fix order NEGZ
                         POSY = bool(flags & 0b0011) # fix order POSY
@@ -318,11 +324,48 @@ def read_skel(operator, context, filepath):
                         matrix = constraint_child.target.data.bones[constraint_child.subtarget].matrix_local.inverted()
                         constraint_child.inverse_matrix = matrix
                         constraint_child.influence = .5
+                    if (type == 2): # SMOOTH
+                        groupName='SMOOTH'
+                        boneGroup = armature_ob.pose.bone_groups.get(groupName)
+                        if not boneGroup:
+                            boneGroup = armature_ob.pose.bone_groups.new(groupName)
+                            boneGroup.color_set = 'THEME14'
+                        pose_bone.bone_group = boneGroup
+                        driver = armature_ob.driver_add('pose.bones["'+bone_name+'"].rotation_quaternion')
+                        expression = '(mld.to_quaternion().inverted() * mls.to_quaternion() * mbs.to_quaternion() * mls.to_quaternion().inverted() * mld.to_quaternion()).slerp(((1,0,0,0)),.5)'
+                        build_driver(driver, expression, 0, bone_name, target_name)
+                        build_driver(driver, expression, 1, bone_name, target_name)
+                        build_driver(driver, expression, 2, bone_name, target_name)
+                        build_driver(driver, expression, 3, bone_name, target_name)
 
             armature_ob.select = True
 
     #wm.progress_end()
     return {'FINISHED'}
+
+
+def build_driver(driver, expression, component, source_bone, target_bone):
+    rot_comp = driver[component]
+    rot_comp.driver.type = 'SCRIPTED'
+    rot_comp.driver.expression = expression + '[' + str(component) + ']'
+
+    var = rot_comp.driver.variables.new()
+    var.type = 'SINGLE_PROP'
+    var.name = 'mls'
+    var.targets[0].id = rot_comp.id_data
+    var.targets[0].data_path = 'data.bones["'+target_bone+'"].matrix_local'
+
+    var = rot_comp.driver.variables.new()
+    var.type = 'SINGLE_PROP'
+    var.name = 'mld'
+    var.targets[0].id = rot_comp.id_data
+    var.targets[0].data_path = 'data.bones["'+source_bone+'"].matrix_local'
+
+    var = rot_comp.driver.variables.new()
+    var.type = 'SINGLE_PROP'
+    var.name = 'mbs'
+    var.targets[0].id = rot_comp.id_data
+    var.targets[0].data_path = 'pose.bones["'+target_bone+'"].matrix_basis'
 
 
 class ImportHaydeeSkel(Operator, ImportHelper):
@@ -890,12 +933,12 @@ def read_dmesh(operator, context, filepath):
 
     return {'FINISHED'}
 
-class ImportHaydeeDMesh(Operator, ExportHelper):
+class ImportHaydeeDMesh(Operator, ImportHelper):
     """This appears in the tooltip of the operator and in the generated docs"""
     bl_idname = "haydee_importer.dmesh"  # important since its how bpy.ops.import_test.some_data is constructed
     bl_label = "Import Haydee dmesh"
 
-    # ExportHelper mixin class uses this
+    # ImportHelper mixin class uses this
     filename_ext = ".dmesh"
 
     filter_glob = StringProperty(
@@ -930,7 +973,7 @@ def read_mesh(operator, context, filepath, outfitName):
             FACE_SIZE = 12
             DEFAULT_MESH_NAME = os.path.splitext(os.path.basename(filepath))[0]
             if outfitName:
-                DEFAULT_MESH_NAME = outfitName + '-' + DEFAULT_MESH_NAME
+                DEFAULT_MESH_NAME = DEFAULT_MESH_NAME
 
             bpy.ops.object.select_all(action='DESELECT')
             print("Importing mesh: %s" % filepath)
@@ -1025,12 +1068,12 @@ def read_mesh(operator, context, filepath, outfitName):
 
     return {'FINISHED'}
 
-class ImportHaydeeMesh(Operator, ExportHelper):
+class ImportHaydeeMesh(Operator, ImportHelper):
     """This appears in the tooltip of the operator and in the generated docs"""
     bl_idname = "haydee_importer.mesh"  # important since its how bpy.ops.import_test.some_data is constructed
     bl_label = "Import Haydee mesh"
 
-    # ExportHelper mixin class uses this
+    # ImportHelper mixin class uses this
     filename_ext = ".mesh"
 
     filter_glob = StringProperty(
@@ -1755,76 +1798,67 @@ def haydeeFilepath(mainpath, filepath):
     return path
 
 
-
 # --------------------------------------------------------------------------------
 #  Initialization & menu
 # --------------------------------------------------------------------------------
+class HaydeeImportSubMenu(bpy.types.Menu):
+    bl_idname = "OBJECT_MT_haydee_import_submenu"
+    bl_label = "Haydee"
 
-def menu_func_import_mesh(self, context):
-    self.layout.operator(ImportHaydeeMesh.bl_idname, text="Haydee Mesh (.mesh)")
-
-def menu_func_import_dmesh(self, context):
-    self.layout.operator(ImportHaydeeDMesh.bl_idname, text="Haydee DMesh (.dmesh)")
-
-def menu_func_import_motion(self, context):
-    self.layout.operator(ImportHaydeeMotion.bl_idname, text="Haydee Motion (.motion)")
-
-def menu_func_import_dmotion(self, context):
-    self.layout.operator(ImportHaydeeDMotion.bl_idname, text="Haydee DMotion (.dmotion)")
-
-def menu_func_import_pose(self, context):
-    self.layout.operator(ImportHaydeePose.bl_idname, text="Haydee Pose (.pose)")
-
-def menu_func_import_dpose(self, context):
-    self.layout.operator(ImportHaydeeDPose.bl_idname, text="Haydee DPose (.dpose)")
-
-def menu_func_import_skel(self, context):
-    self.layout.operator(ImportHaydeeSkel.bl_idname, text="Haydee Skel (.skel)")
-
-def menu_func_import_dskel(self, context):
-    self.layout.operator(ImportHaydeeDSkel.bl_idname, text="Haydee DSkel (.dskel)")
-
-def menu_func_import_outfit(self, context):
-    self.layout.operator(ImportHaydeeOutfit.bl_idname, text="Haydee Outfit (.outfit)")
-
-def menu_func_import_skin(self, context):
-    self.layout.operator(ImportHaydeeSkin.bl_idname, text="Haydee Skin (.skin)")
-
-def menu_func_import_material(self, context):
-    self.layout.operator(ImportHaydeeMaterial.bl_idname, text="Haydee Material(.mtl)")
+    def draw(self, context):
+        layout = self.layout
+        layout.operator(ImportHaydeeMesh.bl_idname, text="Haydee Mesh (.mesh)")
+        layout.operator(ImportHaydeeDMesh.bl_idname, text="Haydee DMesh (.dmesh)")
+        layout.operator(ImportHaydeeSkel.bl_idname, text="Haydee Skel (.skel)")
+        layout.operator(ImportHaydeeDSkel.bl_idname, text="Haydee DSkel (.dskel)")
+        layout.operator(ImportHaydeeSkin.bl_idname, text="Haydee Skin (.skin)")
+        layout.operator(ImportHaydeeMaterial.bl_idname, text="Haydee Material(.mtl)")
+        layout.operator(ImportHaydeeMotion.bl_idname, text="Haydee Motion (.motion)")
+        layout.operator(ImportHaydeeDMotion.bl_idname, text="Haydee DMotion (.dmotion)")
+        layout.operator(ImportHaydeePose.bl_idname, text="Haydee Pose (.pose)")
+        layout.operator(ImportHaydeeDPose.bl_idname, text="Haydee DPose (.dpose)")
+        layout.operator(ImportHaydeeOutfit.bl_idname, text="Haydee Outfit (.outfit)")
 
 
+def menu_func_import(self, context):
+    self.layout.menu(HaydeeImportSubMenu.bl_idname, icon_value=custom_icons["haydee_icon"].icon_id)
+
+
+# ------------------------------------------------------------------------------
+#  Custom Icons
+# ------------------------------------------------------------------------------
+custom_icons = {}
+
+def registerCustomIcon():
+    import bpy.utils.previews
+    global custom_icons
+    custom_icons = bpy.utils.previews.new()
+    script_path = os.path.dirname(__file__)
+    icons_dir = os.path.join(script_path, "icons")
+    custom_icons.load("haydee_icon", os.path.join(icons_dir, "icon.png"), 'IMAGE')
+
+
+def unregisterCustomIcon():
+    global custom_icons
+    bpy.utils.previews.remove(custom_icons)
+
+
+# ------------------------------------------------------------------------------
+#  Register
+# ------------------------------------------------------------------------------
 def register():
-    bpy.types.INFO_MT_file_import.append(menu_func_import_mesh)
-    bpy.types.INFO_MT_file_import.append(menu_func_import_dmesh)
-    bpy.types.INFO_MT_file_import.append(menu_func_import_motion)
-    bpy.types.INFO_MT_file_import.append(menu_func_import_dmotion)
-    bpy.types.INFO_MT_file_import.append(menu_func_import_pose)
-    bpy.types.INFO_MT_file_import.append(menu_func_import_dpose)
-    bpy.types.INFO_MT_file_import.append(menu_func_import_skel)
-    bpy.types.INFO_MT_file_import.append(menu_func_import_dskel)
-    bpy.types.INFO_MT_file_import.append(menu_func_import_outfit)
-    bpy.types.INFO_MT_file_import.append(menu_func_import_skin)
-    bpy.types.INFO_MT_file_import.append(menu_func_import_material)
+    bpy.types.INFO_MT_file_import.append(menu_func_import)
+    registerCustomIcon()
+
 
 def unregister():
-    bpy.types.INFO_MT_file_import.remove(menu_func_import_mesh)
-    bpy.types.INFO_MT_file_import.remove(menu_func_import_dmesh)
-    bpy.types.INFO_MT_file_import.remove(menu_func_import_motion)
-    bpy.types.INFO_MT_file_import.remove(menu_func_import_dmotion)
-    bpy.types.INFO_MT_file_import.remove(menu_func_import_pose)
-    bpy.types.INFO_MT_file_import.remove(menu_func_import_dpose)
-    bpy.types.INFO_MT_file_import.remove(menu_func_import_skel)
-    bpy.types.INFO_MT_file_import.remove(menu_func_import_dskel)
-    bpy.types.INFO_MT_file_import.remove(menu_func_import_outfit)
-    bpy.types.INFO_MT_file_import.remove(menu_func_import_skin)
-    bpy.types.INFO_MT_file_import.remove(menu_func_import_material)
+    bpy.types.INFO_MT_file_import.remove(menu_func_import)
+    unregisterCustomIcon()
+
 
 if __name__ == "__main__":
     register()
 
     # test call
-    # bpy.ops.haydee_exporter.motion('INVOKE_DEFAULT')
-
-
+    # bpy.ops.haydee_importer.motion('INVOKE_DEFAULT')
 
