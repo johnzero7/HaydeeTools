@@ -39,6 +39,8 @@ SHADER_NODE_TEXIMAGE = 'ShaderNodeTexImage'
 SHADER_NODE_TREE = 'ShaderNodeTree'
 SHADER_NODE_INVERT = 'ShaderNodeInvert'
 
+DEFAULT_PBR_POWER = 2
+
 def reaplce_nodes():
     """Replace PBR node groups """
     # Remove group if exists
@@ -73,7 +75,7 @@ def load_image(textureFilepath, forceNewTexture = False):
         # Get texture by filepath
         if not forceNewTexture:
             image = next(
-                (img for img in bpy.data.images if bpy.path.abspath(img.filepath) == textureFilepath), None)
+                (img for img in bpy.data.images if os.path.normpath(bpy.path.abspath(img.filepath)) == os.path.normpath(textureFilepath)), None)
 
         if image is None:
             print("Loading Texture: " + textureFilename)
@@ -533,13 +535,14 @@ def create_cycle_node_material(material, diffuseFile, normalFile, specularFile, 
     diffuseTextureNode.image = load_image(diffuseFile)
     diffuseTextureNode.location = Vector((0, 0))
     specularTextureNode = node_tree.nodes.new(SHADER_NODE_TEXIMAGE)
+    specularTextureNode.color_space = 'NONE'
     specularTextureNode.image = load_image(specularFile)
     specularTextureNode.location = diffuseTextureNode.location + Vector((0, -450))
     normalTextureRgbNode = node_tree.nodes.new(SHADER_NODE_TEXIMAGE)
+    normalTextureRgbNode.color_space = 'NONE'
     normalTextureRgbNode.image = load_image(normalFile)
     if normalTextureRgbNode.image:
         normalTextureRgbNode.image.use_alpha = False
-    normalTextureRgbNode.color_space = 'NONE'
     normalTextureRgbNode.location = specularTextureNode.location + Vector((0, -300))
     normalTextureAlphaNode = node_tree.nodes.new(SHADER_NODE_TEXIMAGE)
     normalTextureAlphaNode.image = load_image(normalFile, True)
@@ -559,8 +562,18 @@ def create_cycle_node_material(material, diffuseFile, normalFile, specularFile, 
     separateRgbNode = node_tree.nodes.new(SHADER_NODE_SEPARATE_RGB)
     separateRgbNode.location = specularTextureNode.location + Vector((200, 60))
 
-    roughnessInvertNode = node_tree.nodes.new(SHADER_NODE_INVERT)
-    roughnessInvertNode.location = separateRgbNode.location + Vector((200, 100))
+    roughnessPowerNode = node_tree.nodes.new(SHADER_NODE_MATH)
+    roughnessPowerNode.operation = 'POWER'
+    roughnessPowerNode.inputs[1].default_value = DEFAULT_PBR_POWER
+    roughnessPowerNode.location = separateRgbNode.location + Vector((200, 200))
+    specPowerNode = node_tree.nodes.new(SHADER_NODE_MATH)
+    specPowerNode.operation = 'POWER'
+    specPowerNode.inputs[1].default_value = DEFAULT_PBR_POWER
+    specPowerNode.location = separateRgbNode.location + Vector((200, 50))
+    metallicPowerNode = node_tree.nodes.new(SHADER_NODE_MATH)
+    metallicPowerNode.operation = 'POWER'
+    metallicPowerNode.inputs[1].default_value = DEFAULT_PBR_POWER
+    metallicPowerNode.location = separateRgbNode.location + Vector((200, -100))
 
     #reflectionLessMoreNode = node_tree.nodes.new(SHADER_NODE_GROUP)
     #reflectionLessMoreNode.location = separateRgbNode.location + Vector((200, -50))
@@ -581,7 +594,7 @@ def create_cycle_node_material(material, diffuseFile, normalFile, specularFile, 
         pbrReflectionInput = 'Reflection'
     else:
         pbrShaderNode = node_tree.nodes.new(BSDF_PRINCIPLED_NODE)
-        pbrShaderNode.location = roughnessInvertNode.location + Vector((200, 100))
+        pbrShaderNode.location = roughnessPowerNode.location + Vector((200, 100))
         pbrColorInput = 'Base Color'
         pbrRoughnessInput = 'Roughness'
         pbrReflectionInput = 'Specular'
@@ -610,13 +623,15 @@ def create_cycle_node_material(material, diffuseFile, normalFile, specularFile, 
     links.new(addShaderNode.outputs['Shader'], outputNode.inputs['Surface'])
 
     links.new(specularTextureNode.outputs['Color'], separateRgbNode.inputs['Image'])
-    links.new(separateRgbNode.outputs['R'], roughnessInvertNode.inputs['Color'])
+    links.new(separateRgbNode.outputs['R'], roughnessPowerNode.inputs[0])
+    links.new(separateRgbNode.outputs['G'], specPowerNode.inputs[0])
+    links.new(separateRgbNode.outputs['B'], metallicPowerNode.inputs[0])
 
     if specularFile and os.path.exists(specularFile):
-        links.new(roughnessInvertNode.outputs[0], pbrShaderNode.inputs[pbrRoughnessInput])
-        links.new(separateRgbNode.outputs['G'], pbrShaderNode.inputs[pbrReflectionInput])
+        links.new(roughnessPowerNode.outputs[0], pbrShaderNode.inputs[pbrRoughnessInput])
+        links.new(specPowerNode.outputs[0], pbrShaderNode.inputs[pbrReflectionInput])
         if pbrMetallicInput:
-            links.new(separateRgbNode.outputs['B'], pbrShaderNode.inputs[pbrMetallicInput])
+            links.new(metallicPowerNode.outputs[0], pbrShaderNode.inputs[pbrMetallicInput])
     links.new(normalMapNode.outputs['Normal'], pbrShaderNode.inputs['Normal'])
 
     links.new(pbrShaderNode.outputs[0], addShaderNode.inputs[1])
