@@ -1,19 +1,27 @@
 import bpy
 
+NAME_LIMIT = 31
+
 def boneRenameBlender(bone_name):
-    if bone_name.startswith("SK_R_"):
-        bone_name = "SK_" + bone_name[5:] + "_R"
-    if bone_name.startswith("SK_L_"):
-        bone_name = "SK_" + bone_name[5:] + "_L"
-    return bone_name.replace(" ", "_")
+    name = bone_name
+    if name.startswith("SK_R_"):
+        name = "SK_" + name[5:] + "_R"
+    if name.startswith("SK_L_"):
+        name = "SK_" + name[5:] + "_L"
+    return stripName(name)
 
 
 def boneRenameHaydee(bone_name):
-    if bone_name.startswith("SK_") and bone_name.endswith("_R"):
-        bone_name = "SK_R_" + bone_name[3:-2]
-    if bone_name.startswith("SK_") and bone_name.endswith("_L"):
-        bone_name = "SK_L_" + bone_name[3:-2]
-    return bone_name.replace(" ", "_")
+    name = bone_name
+    if name.startswith("SK_") and name.endswith("_R"):
+        name = "SK_R_" + name[3:-2]
+    if name.startswith("SK_") and name.endswith("_L"):
+        name = "SK_L_" + name[3:-2]
+    return stripName(name)[:NAME_LIMIT]
+
+
+def stripName(name):
+    return name.replace(" ", "_").replace("*", "_").replace("-", "_")
 
 
 def decodeText(text):
@@ -146,7 +154,7 @@ def new_rest_pose(selected, active):
 class HaydeeToolFitArmature_Op(bpy.types.Operator):
     bl_idname = 'haydee_tools.fit_to_armature'
     bl_label = 'Cycles'
-    bl_description = 'Convert blender render shader to Cycles shader'
+    bl_description = 'Select the mesh armature then the haydee Skel. Raplces the Armature with the skel. Uses the Skel pose'
     bl_options = {'PRESET'}
 
     def execute(self, context):
@@ -157,7 +165,7 @@ class HaydeeToolFitArmature_Op(bpy.types.Operator):
 class HaydeeToolFitMesh_Op(bpy.types.Operator):
     bl_idname = 'haydee_tools.fit_to_mesh'
     bl_label = 'Cycles'
-    bl_description = 'Convert blender render shader to Cycles shader'
+    bl_description = 'Select the mesh armature then the haydee Skel. Raplces the Armature with the skel. Uses the Armature pose'
     bl_options = {'PRESET'}
 
     def execute(self, context):
