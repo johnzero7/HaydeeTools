@@ -150,8 +150,8 @@ class HaydeeToolsExportPanel(bpy.types.Panel):
         r = c.row(align=True)
         r2c1 = r.column(align=True)
         r2c1.operator('haydee_exporter.dskel', text='DSkel')
-        r2c2 = r.column(align=True)
-        r2c2.operator('haydee_exporter.skeleton', text='Skel')
+        #r2c2 = r.column(align=True)
+        #r2c2.operator('haydee_exporter.skeleton', text='Skel')
 
         # col.separator()
         col = layout.column()
