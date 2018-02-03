@@ -4,7 +4,7 @@
 bl_info = {
     "name": "Haydee I/O Scripts",
     "author": "johnzero7",
-    "version": (1, 0, 4),
+    "version": (1, 0, 5),
     "blender": (2, 78, 0),
     "location": "File > Import-Export > HaydeeTools",
     "description": "Import-Export scripts for Haydee",
@@ -17,12 +17,14 @@ bl_info = {
 if "bpy" in locals():
     import imp
     # Import if the library is new
+    from . import HaydeeMenuIcon
     from . import HaydeeExporter
     from . import HaydeeImporter
     from . import HaydeeUtils
     from . import HaydeeNodeMat
     from . import addon_updater_ops
     # Reload
+    imp.reload(HaydeeMenuIcon)
     imp.reload(HaydeeExporter)
     imp.reload(HaydeeImporter)
     imp.reload(HaydeeUtils)
@@ -31,6 +33,7 @@ if "bpy" in locals():
     # print("Reloading Libraries")
 else:
     import bpy
+    from . import HaydeeMenuIcon
     from . import HaydeeExporter
     from . import HaydeeImporter
     from . import HaydeeUtils
@@ -241,6 +244,7 @@ class DemoPreferences(bpy.types.AddonPreferences):
 def register():
     # print('Registering %s' % __name__)
     bpy.utils.register_module(__name__)
+    HaydeeMenuIcon.registerCustomIcon()
     HaydeeExporter.register()
     HaydeeImporter.register()
     addon_updater_ops.register(bl_info)
@@ -251,6 +255,7 @@ def unregister():
     addon_updater_ops.unregister()
     HaydeeExporter.unregister()
     HaydeeImporter.unregister()
+    HaydeeMenuIcon.unregisterCustomIcon()
     bpy.utils.unregister_module(__name__)
 
 if __name__ == "__main__":

@@ -5,6 +5,7 @@ import struct
 import math
 import io
 import re
+from . import HaydeeMenuIcon
 from .HaydeeUtils import boneRenameHaydee, d, find_armature, materials_list, stripName, NAME_LIMIT
 from progress_report import ProgressReport, ProgressReportSubstep
 
@@ -18,9 +19,9 @@ from mathutils import *
 from math import pi
 
 
-# ------------------------------------------------------------------------------
+# --------------------------------------------------------------------------------
 #  .dskel exporter
-# ------------------------------------------------------------------------------
+# --------------------------------------------------------------------------------
 
 def write_dskel(operator, context, filepath):
     armature = find_armature(operator, context)
@@ -63,9 +64,10 @@ def write_dskel(operator, context, filepath):
     f.close();
     return {'FINISHED'}
 
+
 class ExportHaydeeDSkel(Operator, ExportHelper):
     bl_idname = "haydee_exporter.dskel"
-    bl_label = "Export Haydee dskel"
+    bl_label = "Export Haydee DSkel (.dskel)"
     filename_ext = ".dskel"
     filter_glob = StringProperty(
             default="*.dskel",
@@ -81,73 +83,9 @@ class ExportHaydeeDSkel(Operator, ExportHelper):
         return write_dskel(self, context, self.filepath)
 
 
-# ------------------------------------------------------------------------------
-#  .skel exporter
-# ------------------------------------------------------------------------------
-
-def write_skel(operator, context, filepath):
-    armature = find_armature(operator, context)
-    if armature == None:
-        return {'FINISHED'}
-
-    bones = armature.data.bones
-
-    f = open(filepath, 'wb')
-    f.write("HD_DATA_TXT 300\n\n")
-    f.write("skeleton %d\n{\n" % len(bones))
-    r = Quaternion([0, 0, 1], -pi/2)
-    for bone in bones:
-        head = bone.head_local.xzy
-        q = bone.matrix_local.to_quaternion()
-        q = (q * r)
-        q = Quaternion([-q.w, q.x, q.y, -q.z])
-
-        bone_name = boneRenameHaydee(bone.name)
-
-        bone_side = bone.length / 4
-        f.write("\tbone %s\n\t{\n" % bone_name)
-        f.write("\t\twidth %s;\n" % d(bone_side))
-        f.write("\t\theight %s;\n" % d(bone_side))
-        f.write("\t\tlength %s;\n" % d(bone.length))
-
-        if bone.parent:
-            parent_name = boneRenameHaydee(bone.parent.name)
-            f.write("\t\tparent %s;\n" % parent_name)
-            head = bone.head_local
-            head = Vector((head.x, head.z, head.y))
-
-        head = Vector((-head.x, head.y, -head.z))
-        q = Quaternion([q.x, q.z, q.y, q.w])
-        f.write("\t\torigin %s %s %s;\n" % (d(head.x), d(head.y), d(head.z)))
-        f.write("\t\taxis %s %s %s %s;\n" % (d(q.w), d(q.x), d(q.y), d(q.z)))
-        f.write("\t}\n")
-
-    f.write("}\n")
-    f.close();
-    return {'FINISHED'}
-
-
-class ExportHaydeeSkel(Operator, ExportHelper):
-    bl_idname = "haydee_exporter.skeleton"
-    bl_label = "Export Haydee skeleton"
-    filename_ext = ".skel"
-    filter_glob = StringProperty(
-            default="*.skel",
-            options={'HIDDEN'},
-            maxlen=255,  # Max internal buffer length, longer would be clamped.
-            )
-
-    def invoke(self, context, event):
-        context.window_manager.fileselect_add(self)
-        return {'RUNNING_MODAL'}
-
-    def execute(self, context):
-        return write_skel(self, context, self.filepath)
-
-
-# ------------------------------------------------------------------------------
+# --------------------------------------------------------------------------------
 #  .dpose exporter
-# ------------------------------------------------------------------------------
+# --------------------------------------------------------------------------------
 
 def write_dpose(operator, context, filepath):
     armature = find_armature(operator, context)
@@ -179,9 +117,10 @@ def write_dpose(operator, context, filepath):
     f.close();
     return {'FINISHED'}
 
+
 class ExportHaydeeDPose(Operator, ExportHelper):
     bl_idname = "haydee_exporter.dpose"
-    bl_label = "Export Haydee dpose"
+    bl_label = "Export Haydee DPose (.dpose)"
     filename_ext = ".dpose"
     filter_glob = StringProperty(
             default="*.dpose",
@@ -196,9 +135,10 @@ class ExportHaydeeDPose(Operator, ExportHelper):
     def execute(self, context):
         return write_dpose(self, context, self.filepath)
 
-# ------------------------------------------------------------------------------
+
+# --------------------------------------------------------------------------------
 #  .dmot exporter
-# ------------------------------------------------------------------------------
+# --------------------------------------------------------------------------------
 
 def write_dmot(operator, context, filepath):
     armature = find_armature(operator, context)
@@ -254,9 +194,10 @@ def write_dmot(operator, context, filepath):
     f.close();
     return {'FINISHED'}
 
+
 class ExportHaydeeDMotion(Operator, ExportHelper):
-    bl_idname = "haydee_exporter.dmotion"
-    bl_label = "Export Haydee dmotion"
+    bl_idname = "haydee_exporter.dmot"
+    bl_label = "Export Haydee DMotion (.dmot)"
     filename_ext = ".dmot"
     filter_glob = StringProperty(
             default="*.dmot",
@@ -271,9 +212,10 @@ class ExportHaydeeDMotion(Operator, ExportHelper):
     def execute(self, context):
         return write_dmot(self, context, self.filepath)
 
-# ------------------------------------------------------------------------------
+
+# --------------------------------------------------------------------------------
 #  .dmesh exporter
-# ------------------------------------------------------------------------------
+# --------------------------------------------------------------------------------
 
 def write_dmesh(operator, context, filepath, export_skeleton, \
         apply_modifiers, selected_only, separate_files, \
@@ -663,13 +605,9 @@ def to_file(separate_files, filepath, group_name, base_vertex_index,
 
 
 class ExportHaydeeDMesh(Operator, ExportHelper):
-    """This appears in the tooltip of the operator and in the generated docs"""
-    bl_idname = "haydee_exporter.dmesh"  # important since its how bpy.ops.import_test.some_data is constructed
+    bl_idname = "haydee_exporter.dmesh"
     bl_label = "Export Haydee dmesh"
-
-    # ExportHelper mixin class uses this
     filename_ext = ".dmesh"
-
     filter_glob = StringProperty(
             default="*.dmesh",
             options={'HIDDEN'},
@@ -729,46 +667,26 @@ class HaydeeExportSubMenu(bpy.types.Menu):
     def draw(self, context):
         layout = self.layout
         layout.operator(ExportHaydeeDMesh.bl_idname, text="Haydee DMesh (.dmesh)")
-        layout.operator(ExportHaydeeDMotion.bl_idname, text="Haydee DMotion (.dmot)")
-        layout.operator(ExportHaydeeDSkel.bl_idname, text="Haydee DSkel (.dskel)")
         #layout.operator(ExportHaydeeSkel.bl_idname, text="Haydee Skel (.skel)")
+        layout.operator(ExportHaydeeDSkel.bl_idname, text="Haydee DSkel (.dskel)")
+        layout.operator(ExportHaydeeDMotion.bl_idname, text="Haydee DMotion (.dmot)")
         layout.operator(ExportHaydeeDPose.bl_idname, text="Haydee DPose (.dpose)")
 
 
 def menu_func_export(self, context):
-    self.layout.menu(HaydeeExportSubMenu.bl_idname, icon_value=custom_icons["haydee_icon"].icon_id)
+    my_icon = HaydeeMenuIcon.custom_icons["main"]["haydee_icon"]
+    self.layout.menu(HaydeeExportSubMenu.bl_idname, icon_value=my_icon.icon_id)
 
 
-# ------------------------------------------------------------------------------
-#  Custom Icons
-# ------------------------------------------------------------------------------
-custom_icons = {}
-
-def registerCustomIcon():
-    import bpy.utils.previews
-    global custom_icons
-    custom_icons = bpy.utils.previews.new()
-    script_path = os.path.dirname(__file__)
-    icons_dir = os.path.join(script_path, "icons")
-    custom_icons.load("haydee_icon", os.path.join(icons_dir, "icon.png"), 'IMAGE')
-
-
-def unregisterCustomIcon():
-    global custom_icons
-    bpy.utils.previews.remove(custom_icons)
-
-
-# ------------------------------------------------------------------------------
+# --------------------------------------------------------------------------------
 #  Register
-# ------------------------------------------------------------------------------
+# --------------------------------------------------------------------------------
 def register():
     bpy.types.INFO_MT_file_export.append(menu_func_export)
-    registerCustomIcon()
 
 
 def unregister():
     bpy.types.INFO_MT_file_export.remove(menu_func_export)
-    unregisterCustomIcon()
 
 
 if __name__ == "__main__":

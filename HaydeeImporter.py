@@ -5,6 +5,7 @@ import struct
 import math
 import io
 import codecs
+from . import HaydeeMenuIcon
 from .HaydeeUtils import boneRenameBlender, d, find_armature, decodeText
 from .HaydeeNodeMat import create_material
 from progress_report import ProgressReport, ProgressReportSubstep
@@ -369,13 +370,9 @@ def build_driver(driver, expression, component, source_bone, target_bone):
 
 
 class ImportHaydeeSkel(Operator, ImportHelper):
-    """This appears in the tooltip of the operator and in the generated docs"""
-    bl_idname = "haydee_importer.skel"  # important since its how bpy.ops.import_test.some_data is constructed
+    bl_idname = "haydee_importer.skel"
     bl_label = "Import Haydee Skel (.skel)"
-
-    # ImportHelper mixin class uses this
     filename_ext = ".skel"
-
     filter_glob = StringProperty(
             default="*.skel",
             options={'HIDDEN'},
@@ -553,13 +550,9 @@ def read_dskel(operator, context, filepath):
 
 
 class ImportHaydeeDSkel(Operator, ImportHelper):
-    """This appears in the tooltip of the operator and in the generated docs"""
-    bl_idname = "haydee_importer.dskel"  # important since its how bpy.ops.import_test.some_data is constructed
-    bl_label = "Import Haydee Skel (.dskel)"
-
-    # ImportHelper mixin class uses this
+    bl_idname = "haydee_importer.dskel"
+    bl_label = "Import Haydee DSkel (.dskel)"
     filename_ext = ".dskel"
-
     filter_glob = StringProperty(
             default="*.dskel",
             options={'HIDDEN'},
@@ -568,6 +561,7 @@ class ImportHaydeeDSkel(Operator, ImportHelper):
 
     def execute(self, context):
         return read_dskel(self, context, self.filepath)
+
 
 # --------------------------------------------------------------------------------
 #  .dmesh importer
@@ -934,13 +928,9 @@ def read_dmesh(operator, context, filepath):
     return {'FINISHED'}
 
 class ImportHaydeeDMesh(Operator, ImportHelper):
-    """This appears in the tooltip of the operator and in the generated docs"""
-    bl_idname = "haydee_importer.dmesh"  # important since its how bpy.ops.import_test.some_data is constructed
+    bl_idname = "haydee_importer.dmesh"
     bl_label = "Import Haydee dmesh"
-
-    # ImportHelper mixin class uses this
     filename_ext = ".dmesh"
-
     filter_glob = StringProperty(
             default="*.dmesh",
             options={'HIDDEN'},
@@ -953,6 +943,7 @@ class ImportHaydeeDMesh(Operator, ImportHelper):
 
     def execute(self, context):
         return read_dmesh(self, context, self.filepath)
+
 
 # --------------------------------------------------------------------------------
 #  .mesh importer
@@ -1069,13 +1060,9 @@ def read_mesh(operator, context, filepath, outfitName):
     return {'FINISHED'}
 
 class ImportHaydeeMesh(Operator, ImportHelper):
-    """This appears in the tooltip of the operator and in the generated docs"""
-    bl_idname = "haydee_importer.mesh"  # important since its how bpy.ops.import_test.some_data is constructed
+    bl_idname = "haydee_importer.mesh"
     bl_label = "Import Haydee mesh"
-
-    # ImportHelper mixin class uses this
     filename_ext = ".mesh"
-
     filter_glob = StringProperty(
             default="*.mesh",
             options={'HIDDEN'},
@@ -1095,7 +1082,6 @@ class ImportHaydeeMesh(Operator, ImportHelper):
 # --------------------------------------------------------------------------------
 
 def read_motion(operator, context, filepath):
-
     armature = find_armature(operator, context)
     if not armature:
         return {'FINISHED'}
@@ -1198,13 +1184,9 @@ def read_motion(operator, context, filepath):
     return {'FINISHED'}
 
 class ImportHaydeeMotion(Operator, ImportHelper):
-    """This appears in the tooltip of the operator and in the generated docs"""
-    bl_idname = "haydee_importer.motion"  # important since its how bpy.ops.import_test.some_data is constructed
+    bl_idname = "haydee_importer.motion"
     bl_label = "Import Haydee Motion (.motion)"
-
-    # ImportHelper mixin class uses this
     filename_ext = ".motion"
-
     filter_glob = StringProperty(
             default="*.motion",
             options={'HIDDEN'},
@@ -1216,28 +1198,25 @@ class ImportHaydeeMotion(Operator, ImportHelper):
 
 
 # --------------------------------------------------------------------------------
-#  .dmotion importer
+#  .dmot importer
 # --------------------------------------------------------------------------------
 
-def read_dmotion(operator, context, filepath):
+def read_dmot(operator, context, filepath):
     return {'FINISHED'}
 
+
 class ImportHaydeeDMotion(Operator, ImportHelper):
-    """This appears in the tooltip of the operator and in the generated docs"""
-    bl_idname = "haydee_importer.dmotion"  # important since its how bpy.ops.import_test.some_data is constructed
-    bl_label = "Import Haydee DMotion (.dmotion)"
-
-    # ImportHelper mixin class uses this
-    filename_ext = ".dmotion"
-
+    bl_idname = "haydee_importer.dmot"
+    bl_label = "Import Haydee DMotion (.dmot)"
+    filename_ext = ".dmot"
     filter_glob = StringProperty(
-            default="*.dmotion",
+            default="*.dmot",
             options={'HIDDEN'},
             maxlen=255,  # Max internal buffer length, longer would be clamped.
             )
 
     def execute(self, context):
-        return read_dmotion(self, context, self.filepath)
+        return read_dmot(self, context, self.filepath)
 
 
 # --------------------------------------------------------------------------------
@@ -1327,13 +1306,9 @@ def read_pose(operator, context, filepath):
 
 
 class ImportHaydeePose(Operator, ImportHelper):
-    """This appears in the tooltip of the operator and in the generated docs"""
-    bl_idname = "haydee_importer.pose"  # important since its how bpy.ops.import_test.some_data is constructed
+    bl_idname = "haydee_importer.pose"
     bl_label = "Import Haydee Pose (.pose)"
-
-    # ImportHelper mixin class uses this
     filename_ext = ".pose"
-
     filter_glob = StringProperty(
             default="*.pose",
             options={'HIDDEN'},
@@ -1351,14 +1326,11 @@ class ImportHaydeePose(Operator, ImportHelper):
 def read_dpose(operator, context, filepath):
     return {'FINISHED'}
 
+
 class ImportHaydeeDPose(Operator, ImportHelper):
-    """This appears in the tooltip of the operator and in the generated docs"""
-    bl_idname = "haydee_importer.dpose"  # important since its how bpy.ops.import_test.some_data is constructed
+    bl_idname = "haydee_importer.dpose"
     bl_label = "Import Haydee DPose (.dpose)"
-
-    # ImportHelper mixin class uses this
     filename_ext = ".dpose"
-
     filter_glob = StringProperty(
             default="*.dpose",
             options={'HIDDEN'},
@@ -1367,7 +1339,6 @@ class ImportHaydeeDPose(Operator, ImportHelper):
 
     def execute(self, context):
         return read_dpose(self, context, self.filepath)
-
 
 
 # --------------------------------------------------------------------------------
@@ -1492,13 +1463,9 @@ def read_outfit(operator, context, filepath):
     return {'FINISHED'}
 
 class ImportHaydeeOutfit(Operator, ImportHelper):
-    """This appears in the tooltip of the operator and in the generated docs"""
-    bl_idname = "haydee_importer.outfit"  # important since its how bpy.ops.import_test.some_data is constructed
+    bl_idname = "haydee_importer.outfit"
     bl_label = "Import Haydee Outfit (.outfit)"
-
-    # ImportHelper mixin class uses this
     filename_ext = ".outfit"
-
     filter_glob = StringProperty(
             default="*.outfit",
             options={'HIDDEN'},
@@ -1657,13 +1624,9 @@ def read_skin(operator, context, filepath, armature_ob):
 
 
 class ImportHaydeeSkin(Operator, ImportHelper):
-    """This appears in the tooltip of the operator and in the generated docs"""
-    bl_idname = "haydee_importer.skin"  # important since its how bpy.ops.import_test.some_data is constructed
+    bl_idname = "haydee_importer.skin"
     bl_label = "Import Haydee Skin (.skin)"
-
-    # ImportHelper mixin class uses this
     filename_ext = ".skin"
-
     filter_glob = StringProperty(
             default="*.skin",
             options={'HIDDEN'},
@@ -1765,13 +1728,9 @@ def read_material(operator, context, filepath):
 
 
 class ImportHaydeeMaterial(Operator, ImportHelper):
-    """This appears in the tooltip of the operator and in the generated docs"""
-    bl_idname = "haydee_importer.material"  # important since its how bpy.ops.import_test.some_data is constructed
+    bl_idname = "haydee_importer.material"
     bl_label = "Import Haydee Material (.mtl)"
-
-    # ImportHelper mixin class uses this
     filename_ext = ".mtl"
-
     filter_glob = StringProperty(
             default="*.mtl",
             options={'HIDDEN'},
@@ -1814,46 +1773,26 @@ class HaydeeImportSubMenu(bpy.types.Menu):
         layout.operator(ImportHaydeeSkin.bl_idname, text="Haydee Skin (.skin)")
         layout.operator(ImportHaydeeMaterial.bl_idname, text="Haydee Material(.mtl)")
         layout.operator(ImportHaydeeMotion.bl_idname, text="Haydee Motion (.motion)")
-        layout.operator(ImportHaydeeDMotion.bl_idname, text="Haydee DMotion (.dmotion)")
+        layout.operator(ImportHaydeeDMotion.bl_idname, text="Haydee DMotion (.dmot)")
         layout.operator(ImportHaydeePose.bl_idname, text="Haydee Pose (.pose)")
         layout.operator(ImportHaydeeDPose.bl_idname, text="Haydee DPose (.dpose)")
         layout.operator(ImportHaydeeOutfit.bl_idname, text="Haydee Outfit (.outfit)")
 
 
 def menu_func_import(self, context):
-    self.layout.menu(HaydeeImportSubMenu.bl_idname, icon_value=custom_icons["haydee_icon"].icon_id)
+    my_icon = HaydeeMenuIcon.custom_icons["main"]["haydee_icon"]
+    self.layout.menu(HaydeeImportSubMenu.bl_idname, icon_value=my_icon.icon_id)
 
 
-# ------------------------------------------------------------------------------
-#  Custom Icons
-# ------------------------------------------------------------------------------
-custom_icons = {}
-
-def registerCustomIcon():
-    import bpy.utils.previews
-    global custom_icons
-    custom_icons = bpy.utils.previews.new()
-    script_path = os.path.dirname(__file__)
-    icons_dir = os.path.join(script_path, "icons")
-    custom_icons.load("haydee_icon", os.path.join(icons_dir, "icon.png"), 'IMAGE')
-
-
-def unregisterCustomIcon():
-    global custom_icons
-    bpy.utils.previews.remove(custom_icons)
-
-
-# ------------------------------------------------------------------------------
+# --------------------------------------------------------------------------------
 #  Register
-# ------------------------------------------------------------------------------
+# --------------------------------------------------------------------------------
 def register():
     bpy.types.INFO_MT_file_import.append(menu_func_import)
-    registerCustomIcon()
 
 
 def unregister():
     bpy.types.INFO_MT_file_import.remove(menu_func_import)
-    unregisterCustomIcon()
 
 
 if __name__ == "__main__":
