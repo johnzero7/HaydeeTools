@@ -93,7 +93,7 @@ class HaydeeToolsImportPanel(bpy.types.Panel):
         # c = col.column()
         r = col.row(align=True)
         r1c1 = r.column(align=True)
-        r1c1.operator("haydee_importer.dmotion", text='Dmotion', icon='NONE')
+        r1c1.operator("haydee_importer.dmot", text='Dmotion', icon='NONE')
         r1c2 = r.column(align=True)
         r1c2.operator('haydee_importer.motion', text='Motion')
 
@@ -168,7 +168,7 @@ class HaydeeToolsExportPanel(bpy.types.Panel):
 
         col.label('Motion:')
         c = col.column(align=True)
-        c.operator('haydee_exporter.dmotion', text='DMot')
+        c.operator('haydee_exporter.dmot', text='DMot')
 
 
 
