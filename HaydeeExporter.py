@@ -5,7 +5,6 @@ import struct
 import math
 import io
 import re
-from . import HaydeeMenuIcon
 from .HaydeeUtils import boneRenameHaydee, d, find_armature, materials_list, stripName, NAME_LIMIT
 from progress_report import ProgressReport, ProgressReportSubstep
 
@@ -667,10 +666,9 @@ class HaydeeExportSubMenu(bpy.types.Menu):
     def draw(self, context):
         layout = self.layout
         layout.operator(ExportHaydeeDMesh.bl_idname, text="Haydee DMesh (.dmesh)")
-        #layout.operator(ExportHaydeeSkel.bl_idname, text="Haydee Skel (.skel)")
         layout.operator(ExportHaydeeDSkel.bl_idname, text="Haydee DSkel (.dskel)")
-        layout.operator(ExportHaydeeDMotion.bl_idname, text="Haydee DMotion (.dmot)")
         layout.operator(ExportHaydeeDPose.bl_idname, text="Haydee DPose (.dpose)")
+        layout.operator(ExportHaydeeDMotion.bl_idname, text="Haydee DMotion (.dmot)")
 
 
 def menu_func_export(self, context):

@@ -5,7 +5,6 @@ import struct
 import math
 import io
 import codecs
-from . import HaydeeMenuIcon
 from .HaydeeUtils import boneRenameBlender, d, find_armature, decodeText
 from .HaydeeNodeMat import create_material
 from progress_report import ProgressReport, ProgressReportSubstep
@@ -185,8 +184,8 @@ def read_skel(operator, context, filepath):
                 armature_ob = bpy.data.objects.new("Armature", armature_da)
                 armature_ob.show_x_ray = True
 
-                bpy.context.scene.objects.link(armature_ob)
-                bpy.context.scene.objects.active = armature_ob
+                bpy.context.scene.collection.objects.link(armature_ob)
+                bpy.context.view_layer.objects.active = armature_ob
                 bpy.ops.object.mode_set(mode='EDIT')
 
                 # create all Bones
@@ -339,7 +338,7 @@ def read_skel(operator, context, filepath):
                         build_driver(driver, expression, 2, bone_name, target_name)
                         build_driver(driver, expression, 3, bone_name, target_name)
 
-            armature_ob.select = True
+            armature_ob.select_set(action='SELECT')
 
     #wm.progress_end()
     return {'FINISHED'}
@@ -493,8 +492,8 @@ def read_dskel(operator, context, filepath):
                 armature_ob = bpy.data.objects.new("Armature", armature_da)
                 armature_ob.show_x_ray = True
 
-                bpy.context.scene.objects.link(armature_ob)
-                bpy.context.scene.objects.active = armature_ob
+                bpy.context.scene.collection.objects.link(armature_ob)
+                bpy.context.view_layer.objects.active = armature_ob
                 bpy.ops.object.mode_set(mode='EDIT')
 
                 # create all Bones
@@ -545,7 +544,7 @@ def read_dskel(operator, context, filepath):
             bpy.ops.object.mode_set(mode='OBJECT')
             progress.leave_substeps("Build armature end")
 
-    armature_ob.select = True
+    armature_ob.select_set(action='SELECT')
     return {'FINISHED'}
 
 
@@ -744,8 +743,8 @@ def read_dmesh(operator, context, filepath):
                 armature_ob = bpy.data.objects.new("Armature", armature_da)
                 armature_ob.show_x_ray = True
 
-                bpy.context.scene.objects.link(armature_ob)
-                bpy.context.scene.objects.active = armature_ob
+                bpy.context.scene.collection.objects.link(armature_ob)
+                bpy.context.view_layer.objects.active = armature_ob
                 bpy.ops.object.mode_set(mode='EDIT')
 
                 # create all Bones
@@ -796,7 +795,7 @@ def read_dmesh(operator, context, filepath):
                 progress.leave_substeps("Build armature end")
 
             if armature_ob:
-                armature_ob.select = True
+                armature_ob.select_set(action='SELECT')
 
 
             # Create mesh (verts and faces)
@@ -834,7 +833,7 @@ def read_dmesh(operator, context, filepath):
                 progress.enter_substeps(1,"uv")
                 useUvs = True
                 if useUvs and face_uvs is not None:
-                    mesh_data.uv_textures.new()
+                    mesh_data.uv_layers.new()
                     blen_uvs = mesh_data.uv_layers[-1]
                     for idx, uvs in enumerate([uv for uvs in face_uvs for uv in uvs[::-1]]):
                         blen_uvs.data[idx].uv = uv_data[int(uvs)]
@@ -919,8 +918,8 @@ def read_dmesh(operator, context, filepath):
                 progress.leave_substeps("parent end")
 
                 scene = bpy.context.scene
-                scene.objects.link(mesh_obj)
-                mesh_obj.select = True
+                scene.collection.objects.link(mesh_obj)
+                mesh_obj.select_set(action='SELECT')
                 #scene.update()
                 progress.step()
             progress.leave_substeps("creating meshes end")
@@ -1037,7 +1036,7 @@ def read_mesh(operator, context, filepath, outfitName):
             progress.enter_substeps(1,"uv")
             useUvs = True
             if useUvs and uv_data is not None:
-                mesh_data.uv_textures.new()
+                mesh_data.uv_layers.new()
                 blen_uvs = mesh_data.uv_layers[-1]
                 for loop in mesh_data.loops:
                     blen_uvs.data[loop.index].uv = uv_data[loop.vertex_index]
@@ -1053,9 +1052,9 @@ def read_mesh(operator, context, filepath, outfitName):
 
             mesh_obj = bpy.data.objects.new(mesh_data.name, mesh_data)
             scene = bpy.context.scene
-            scene.objects.link(mesh_obj)
-            mesh_obj.select = True
-            bpy.context.scene.objects.active = mesh_obj
+            scene.collection.objects.link(mesh_obj)
+            mesh_obj.select_set(action='SELECT')
+            bpy.context.view_layer.objects.active = mesh_obj
 
     return {'FINISHED'}
 
@@ -1126,8 +1125,8 @@ def read_motion(operator, context, filepath):
     bpy.ops.object.mode_set(mode='OBJECT')
     bpy.ops.object.select_all(action='DESELECT')
     armature.hide = False
-    armature.select = True
-    bpy.context.scene.objects.active = armature
+    armature.select_set(action='SELECT')
+    bpy.context.view_layer.objects.active = armature
     bpy.ops.object.mode_set(mode='POSE')
 
     wm = bpy.context.window_manager
@@ -1138,7 +1137,7 @@ def read_motion(operator, context, filepath):
     context.scene.frame_start = 1
     context.scene.frame_end = frameCount
     for pose in context.selected_pose_bones:
-        pose.bone.select = False
+        pose.bone.select_set(action='DESELECT')
     for frame in range(1, frameCount+1):
         wm.progress_update(frame-1)
         context.scene.frame_current = frame
@@ -1152,7 +1151,7 @@ def read_motion(operator, context, filepath):
             pose = armature.pose.bones[bone_name]
             if not bone:
                 continue
-            bone.select = True
+            bone.select_set(action='SELECT')
 
             (x, y, z, qx, qz, qy, qw) = bones[bone_name][frame-1]
 
@@ -1178,7 +1177,7 @@ def read_motion(operator, context, filepath):
             bone = armature.data.bones[bone_name]
             if not bone:
                 continue
-            bone.select = False
+            bone.select_set(action='DESELECT')
 
     wm.progress_end()
     return {'FINISHED'}
@@ -1201,7 +1200,7 @@ class ImportHaydeeMotion(Operator, ImportHelper):
 #  .dmot importer
 # --------------------------------------------------------------------------------
 
-def read_dmot(operator, context, filepath):
+def read_dmotion(operator, context, filepath):
     return {'FINISHED'}
 
 
@@ -1216,7 +1215,7 @@ class ImportHaydeeDMotion(Operator, ImportHelper):
             )
 
     def execute(self, context):
-        return read_dmot(self, context, self.filepath)
+        return read_dmotion(self, context, self.filepath)
 
 
 # --------------------------------------------------------------------------------
@@ -1263,8 +1262,8 @@ def read_pose(operator, context, filepath):
     bpy.ops.object.mode_set(mode='OBJECT')
     bpy.ops.object.select_all(action='DESELECT')
     armature.hide = False
-    armature.select = True
-    bpy.context.scene.objects.active = armature
+    armature.select_set(action='SELECT')
+    bpy.context.view_layer.objects.active = armature
     bpy.ops.object.mode_set(mode='POSE')
     bpy.ops.pose.select_all(action='DESELECT')
 
@@ -1283,7 +1282,7 @@ def read_pose(operator, context, filepath):
         pose = armature.pose.bones.get(bone_name)
         if not bone:
             continue
-        bone.select = True
+        bone.select_set(action='SELECT')
 
         (x, y, z, qx, qz, qy, qw) = bones[bone_name]
 
@@ -1428,12 +1427,12 @@ def read_outfit(operator, context, filepath):
                 #Create Mesh
                 if meshpath and os.path.exists(meshpath):
                     read_mesh(operator, context, meshpath, outfitName)
-                    imported_meshes.append(bpy.context.scene.objects.active)
+                    imported_meshes.append(bpy.context.view_layer.objects.active)
                 else:
                     filename = os.path.splitext(os.path.basename(meshpath))[0]
                     print('File not found:', filename, meshpath)
 
-                mesh_obj = bpy.context.scene.objects.active
+                mesh_obj = bpy.context.view_layer.objects.active
 
                 #Create Material
                 if matrpath and os.path.exists(matrpath):
@@ -1451,14 +1450,14 @@ def read_outfit(operator, context, filepath):
                         filename = os.path.splitext(os.path.basename(skinpath))[0]
                         print('File not found:', filename, skinpath)
 
-                obj = bpy.context.scene.objects.active
+                obj = bpy.context.view_layer.objects.active
                 if (not armature_obj and obj.type == 'ARMATURE'):
                     armature_obj = obj
 
             for obj in imported_meshes:
-                obj.select = True
+                obj.select_set(action='SELECT')
             if armature_obj:
-                armature_obj.select = True
+                armature_obj.select_set(action='SELECT')
 
     return {'FINISHED'}
 
@@ -1482,11 +1481,10 @@ class ImportHaydeeOutfit(Operator, ImportHelper):
 
 def read_skin(operator, context, filepath, armature_ob):
     print('Skin:', filepath)
-    if not bpy.context.scene.objects.active or \
-            bpy.context.scene.objects.active.type != 'MESH':
+    if not bpy.context.view_layer.objects.active or \
+            bpy.context.view_layer.objects.active.type != 'MESH':
         return {'FINISHED'}
 
-    bpy.context.scene.render.engine = 'CYCLES'
     with ProgressReport(context.window_manager) as progReport:
         with ProgressReportSubstep(progReport, 5,
                 "Importing mesh", "Finish Importing dmesh") as progress:
@@ -1560,7 +1558,7 @@ def read_skin(operator, context, filepath, armature_ob):
                 bone_data.append({'name':name, 'mat':mat, 'vec':vec})
 
 
-            mesh_obj = bpy.context.scene.objects.active
+            mesh_obj = bpy.context.view_layer.objects.active
 
             for vertIdx, v_data in enumerate(vert_data):
                 for boneIdx, vertexWeight in v_data:
@@ -1578,9 +1576,9 @@ def read_skin(operator, context, filepath, armature_ob):
                 armature_da.draw_type = 'STICK'
                 armature_ob = bpy.data.objects.new("Armature", armature_da)
                 armature_ob.show_x_ray = True
-                bpy.context.scene.objects.link(armature_ob)
+                bpy.context.scene.collection.objects.link(armature_ob)
 
-            bpy.context.scene.objects.active = armature_ob
+            bpy.context.view_layer.objects.active = armature_ob
             bpy.ops.object.mode_set(mode='EDIT')
 
             # create all Bones
@@ -1642,8 +1640,8 @@ class ImportHaydeeSkin(Operator, ImportHelper):
 # --------------------------------------------------------------------------------
 def read_material(operator, context, filepath):
     print('Material:', filepath)
-    if not bpy.context.scene.objects.active or \
-            bpy.context.scene.objects.active.type != 'MESH':
+    if not bpy.context.view_layer.objects.active or \
+            bpy.context.view_layer.objects.active.type != 'MESH':
         return {'FINISHED'}
 
     with ProgressReport(context.window_manager) as progReport:
@@ -1707,7 +1705,7 @@ def read_material(operator, context, filepath):
                 if (line_start == 'emissionMap' and level == 1):
                     emissionMap = line_split[1].replace('"','')
 
-            obj = bpy.context.scene.objects.active
+            obj = bpy.context.view_layer.objects.active
             basedir = os.path.dirname(filepath)
             matName = os.path.basename(filepath)
             matName = os.path.splitext(matName)[0]

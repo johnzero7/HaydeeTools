@@ -1,43 +1,63 @@
+# -*- coding: utf-8 -*-
+# <pep8 compliant>
+
 import bpy
 import os
 from mathutils import Vector
 
+#Nodes Layout
+NODE_FRAME = 'NodeFrame'
+
+#Nodes Shaders
+SHADER_NODE_BSDF_DIFFUSE = 'ShaderNodeBsdfDiffuse'
+SHADER_NODE_EMISSION = 'ShaderNodeEmission'
+SHADER_NODE_BSDF_GLOSSY = 'ShaderNodeBsdfGlossy'
+BSDF_PRINCIPLED_NODE = 'ShaderNodeBsdfPrincipled'
+SHADER_NODE_ADD_SHADER = 'ShaderNodeAddShader'
+SHADER_NODE_MIX_SHADER = 'ShaderNodeMixShader'
+
+#Nodes Color
+SHADER_NODE_MIX_RGB = 'ShaderNodeMixRGB'
+SHADER_NODE_INVERT = 'ShaderNodeInvert'
+
+#Nodes Input
+SHADER_NODE_TEXIMAGE = 'ShaderNodeTexImage'
+SHADER_NODE_FRESNEL = 'ShaderNodeFresnel'
+SHADER_NODE_NEW_GEOMETRY = 'ShaderNodeNewGeometry'
+
+#Nodes Outputs
+SHADER_NODE_OUTPUT_MATERIAL = 'ShaderNodeOutputMaterial'
+
+#Nodes Vector
+SHADER_NODE_BUMP = 'ShaderNodeBump'
+SHADER_NODE_NORMAL_MAP = 'ShaderNodeNormalMap'
+
+#Nodes Convert
+SHADER_NODE_MATH = 'ShaderNodeMath'
+SHADER_NODE_SEPARATE_RGB = 'ShaderNodeSeparateRGB'
+SHADER_NODE_COMBINE_RGB = 'ShaderNodeCombineRGB'
+
+# Node Groups
+SHADER_NODE_GROUP = 'ShaderNodeGroup'
+NODE_GROUP_INPUT = 'NodeGroupInput'
+NODE_GROUP_OUTPUT = 'NodeGroupOutput'
+SHADER_NODE_TREE = 'ShaderNodeTree'
+# Node Custom Groups
 PBR_FRESNEL_NODE = 'PBR Fresnel'
 PBR_REFELCTION_NODE = 'PBR Reflection'
 PBR_SHADER_NODE = 'PBR Shader'
 LESS_MORE_NODE = 'Less/More'
 HAYDEE_NORMAL_NODE = 'Haydee Normal'
 
-NODE_FRAME = 'NodeFrame'
-BSDF_PRINCIPLED_NODE = 'ShaderNodeBsdfPrincipled'
-NODE_GROUP_INPUT = 'NodeGroupInput'
-NODE_GROUP_OUTPUT = 'NodeGroupOutput'
+# Sockets
 NODE_SOCKET_COLOR = 'NodeSocketColor'
 NODE_SOCKET_FLOAT = 'NodeSocketFloat'
 NODE_SOCKET_FLOAT_FACTOR = 'NodeSocketFloatFactor'
 NODE_SOCKET_SHADER = 'NodeSocketShader'
 NODE_SOCKET_VECTOR = 'NodeSocketVector'
-SHADER_NODE_ADD_SHADER = 'ShaderNodeAddShader'
-SHADER_NODE_BSDF_DIFFUSE = 'ShaderNodeBsdfDiffuse'
-SHADER_NODE_BSDF_GLOSSY = 'ShaderNodeBsdfGlossy'
-SHADER_NODE_BUMP = 'ShaderNodeBump'
-SHADER_NODE_COMBINE_RGB = 'ShaderNodeCombineRGB'
-SHADER_NODE_EMISSION = 'ShaderNodeEmission'
-SHADER_NODE_FRESNEL = 'ShaderNodeFresnel'
-SHADER_NODE_GROUP = 'ShaderNodeGroup'
-SHADER_NODE_INVERT = 'ShaderNodeInvert'
-SHADER_NODE_MATERIAL = 'ShaderNodeMaterial'
-SHADER_NODE_MATH = 'ShaderNodeMath'
-SHADER_NODE_MIX_RGB = 'ShaderNodeMixRGB'
-SHADER_NODE_MIX_SHADER = 'ShaderNodeMixShader'
-SHADER_NODE_NEW_GEOMETRY = 'ShaderNodeNewGeometry'
-SHADER_NODE_NORMAL_MAP = 'ShaderNodeNormalMap'
-SHADER_NODE_OUTPUT = 'ShaderNodeOutput'
-SHADER_NODE_OUTPUT_MATERIAL = 'ShaderNodeOutputMaterial'
-SHADER_NODE_SEPARATE_RGB = 'ShaderNodeSeparateRGB'
-SHADER_NODE_TEXIMAGE = 'ShaderNodeTexImage'
-SHADER_NODE_TREE = 'ShaderNodeTree'
-SHADER_NODE_INVERT = 'ShaderNodeInvert'
+
+
+
 
 DEFAULT_PBR_POWER = 2
 
@@ -483,47 +503,7 @@ def create_material(obj, mat_name, diffuseFile, normalFile, specularFile, emissi
     material.use_nodes = True
     obj.data.materials.append(material)
 
-    create_bi_node_material(material, diffuseFile, normalFile, specularFile, emissionFile)
     create_cycle_node_material(material, diffuseFile, normalFile, specularFile, emissionFile)
-
-
-def create_bi_node_material(material, diffuseFile, normalFile, specularFile, emissionFile):
-    #clear slots
-    slots = material.texture_slots
-    for idx, slot in enumerate(slots):
-        if slot:
-            slots.clear(idx)
-
-    #diffuse
-    if diffuseFile and os.path.exists(diffuseFile):
-        name = os.path.basename(diffuseFile)
-        texture = bpy.data.textures.new(name, 'IMAGE')
-        texture.image = load_image(diffuseFile)
-        texSlot = material.texture_slots.create(0)
-        texSlot.texture =  texture
-
-    #normal
-    if normalFile and os.path.exists(normalFile):
-        name = os.path.basename(normalFile)
-        texture = bpy.data.textures.new(name, 'IMAGE')
-        texture.use_normal_map = True
-        texture.image = load_image(normalFile)
-        texSlot = material.texture_slots.create(1)
-        texSlot.texture = texture
-        texSlot.use_map_color_diffuse = False
-        texSlot.use_map_emit = False
-        texSlot.use_map_normal = True
-
-    #emission
-    if emissionFile and os.path.exists(emissionFile):
-        name = os.path.basename(emissionFile)
-        texture = bpy.data.textures.new(name, 'IMAGE')
-        texture.image = load_image(emissionFile)
-        texSlot = material.texture_slots.create(2)
-        texSlot.texture = texture
-        texSlot.use_map_color_diffuse = False
-        texSlot.use_map_emit = True
-        texSlot.use_rgb_to_intensity = True
 
 
 def create_cycle_node_material(material, diffuseFile, normalFile, specularFile, emissionFile):
@@ -635,16 +615,4 @@ def create_cycle_node_material(material, diffuseFile, normalFile, specularFile, 
     links.new(normalMapNode.outputs['Normal'], pbrShaderNode.inputs['Normal'])
 
     links.new(pbrShaderNode.outputs[0], addShaderNode.inputs[1])
-
-
-    #BI Nodes
-    biMaterialNode = node_tree.nodes.new(SHADER_NODE_MATERIAL)
-    biMaterialNode.location = Vector((0, 1000))
-    biMaterialNode.material = material
-    biOutputNode = node_tree.nodes.new(SHADER_NODE_OUTPUT)
-    biOutputNode.location = biMaterialNode.location + Vector((300, 0))
-
-    #BI Nodes Links
-    links.new(biMaterialNode.outputs['Color'], biOutputNode.inputs['Color'])
-    links.new(biMaterialNode.outputs['Alpha'], biOutputNode.inputs['Alpha'])
 
