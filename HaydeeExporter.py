@@ -5,7 +5,9 @@ import struct
 import math
 import io
 import re
-from .HaydeeUtils import boneRenameHaydee, d, find_armature, materials_list, stripName, NAME_LIMIT
+from .HaydeeUtils import d, find_armature
+from .HaydeeUtils import boneRenameHaydee, materials_list, stripName, NAME_LIMIT
+from . import HaydeeMenuIcon
 from progress_report import ProgressReport, ProgressReportSubstep
 
 # ExportHelper is a helper class, defines filename and
@@ -18,9 +20,9 @@ from mathutils import *
 from math import pi
 
 
-# --------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 #  .dskel exporter
-# --------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 def write_dskel(operator, context, filepath):
     armature = find_armature(operator, context)
@@ -682,11 +684,11 @@ def menu_func_export(self, context):
 #  Register
 # --------------------------------------------------------------------------------
 def register():
-    bpy.types.INFO_MT_file_export.append(menu_func_export)
+    bpy.types.TOPBAR_MT_file_export.append(menu_func_export)
 
 
 def unregister():
-    bpy.types.INFO_MT_file_export.remove(menu_func_export)
+    bpy.types.TOPBAR_MT_file_export.remove(menu_func_export)
 
 
 if __name__ == "__main__":

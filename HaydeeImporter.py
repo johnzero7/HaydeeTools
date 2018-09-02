@@ -5,8 +5,11 @@ import struct
 import math
 import io
 import codecs
-from .HaydeeUtils import boneRenameBlender, d, find_armature, decodeText
+from .HaydeeUtils import d, find_armature
+from .HaydeeUtils import boneRenameBlender, decodeText
 from .HaydeeNodeMat import create_material
+from .timing import profile
+from . import HaydeeMenuIcon
 from progress_report import ProgressReport, ProgressReportSubstep
 
 # ImportHelper is a helper class, defines filename and
@@ -1794,11 +1797,11 @@ def menu_func_import(self, context):
 #  Register
 # --------------------------------------------------------------------------------
 def register():
-    bpy.types.INFO_MT_file_import.append(menu_func_import)
+    bpy.types.TOPBAR_MT_file_import.append(menu_func_import)
 
 
 def unregister():
-    bpy.types.INFO_MT_file_import.remove(menu_func_import)
+    bpy.types.TOPBAR_MT_file_import.remove(menu_func_import)
 
 
 if __name__ == "__main__":
