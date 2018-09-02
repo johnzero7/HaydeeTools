@@ -14,35 +14,35 @@ bl_info = {
     "category": "Import-Export",
 }
 
+
+#############################################
+# support reloading sub-modules
+_modules = [
+    'HaydeeMenuIcon',
+    'HaydeePanels',
+    'HaydeeExporter',
+    'HaydeeImporter',
+    'HaydeeUtils',
+    'HaydeeNodeMat',
+    'addon_updater_ops',
+]
+
+#Reload previously loaded modules
 if "bpy" in locals():
-    import importlib
-    # Import if the library is new
-    from . import HaydeeMenuIcon
-    from . import HaydeePanels
-    from . import HaydeeExporter
-    from . import HaydeeImporter
-    from . import HaydeeUtils
-    from . import HaydeeNodeMat
-    from . import addon_updater_ops
-    # Reload
-    importlib.reload(HaydeePanels)
-    importlib.reload(HaydeeMenuIcon)
-    importlib.reload(HaydeeExporter)
-    importlib.reload(HaydeeImporter)
-    importlib.reload(HaydeeUtils)
-    importlib.reload(HaydeeNodeMat)
-    importlib.reload(addon_updater_ops)
-    # print("Reloading Libraries")
-else:
-    import bpy
-    from . import HaydeePanels
-    from . import HaydeeMenuIcon
-    from . import HaydeeExporter
-    from . import HaydeeImporter
-    from . import HaydeeUtils
-    from . import HaydeeNodeMat
-    from . import addon_updater_ops
-    # print("Loading Libraries")
+    from importlib import reload
+    _modules_loaded[:] = [reload(module) for module in _modules_loaded]
+    del reload
+
+
+#First import the modules
+__import__(name=__name__, fromlist=_modules)
+_namespace = globals()
+_modules_loaded = [_namespace[name] for name in _modules]
+del _namespace
+# support reloading sub-modules
+#############################################
+
+import bpy
 
 
 class UpdaterPreferences(bpy.types.AddonPreferences):
