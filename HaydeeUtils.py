@@ -109,13 +109,13 @@ def apply_pose(selected, active):
         obj.parent = active
     for modif in modifiers:
         obj = modif.id_data
-        bpy.context.scene.objects.active = obj
+        bpy.context.view_layer.objects.active = obj
         index = obj.modifiers.find(modif.name)
         bpy.ops.object.modifier_copy(modifier=modif.name)
         new_modif_name = obj.modifiers[index+1].name
         bpy.ops.object.modifier_apply(apply_as='DATA', modifier=new_modif_name)
         modif.object = active
-    bpy.context.scene.objects.active = active
+    bpy.context.view_layer.objects.active = active
 
 
 def fit_to_mesh():
@@ -133,7 +133,7 @@ def fit_to_mesh():
 
 def new_rest_pose(selected, active):
     bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
-    bpy.context.scene.objects.active = active
+    bpy.context.view_layer.objects.active = active
     bpy.ops.object.mode_set(mode='POSE', toggle=False)
     bpy.ops.pose.armature_apply()
     for pose_bone in active.pose.bones:
