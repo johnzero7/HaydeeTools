@@ -4,8 +4,8 @@
 bl_info = {
     "name": "Haydee I/O Scripts",
     "author": "johnzero7",
-    "version": (1, 0, 5),
-    "blender": (2, 78, 0),
+    "version": (1, 1, 0),
+    "blender": (2, 80, 0),
     "location": "File > Import-Export > HaydeeTools",
     "description": "Import-Export scripts for Haydee",
     "warning": "",
@@ -50,31 +50,31 @@ class UpdaterPreferences(bpy.types.AddonPreferences):
 
 
     # addon updater preferences from `__init__`, be sure to copy all of them
-    auto_check_update = bpy.props.BoolProperty(
+    auto_check_update : bpy.props.BoolProperty(
         name = "Auto-check for Update",
         description = "If enabled, auto-check for updates using an interval",
         default = False,
     )
-    updater_intrval_months = bpy.props.IntProperty(
+    updater_intrval_months : bpy.props.IntProperty(
         name='Months',
         description = "Number of months between checking for updates",
         default=0,
         min=0
     )
-    updater_intrval_days = bpy.props.IntProperty(
+    updater_intrval_days : bpy.props.IntProperty(
         name='Days',
         description = "Number of days between checking for updates",
         default=7,
         min=0,
     )
-    updater_intrval_hours = bpy.props.IntProperty(
+    updater_intrval_hours : bpy.props.IntProperty(
         name='Hours',
         description = "Number of hours between checking for updates",
         default=0,
         min=0,
         max=23
     )
-    updater_intrval_minutes = bpy.props.IntProperty(
+    updater_intrval_minutes : bpy.props.IntProperty(
         name='Minutes',
         description = "Number of minutes between checking for updates",
         default=0,
@@ -98,7 +98,6 @@ classesToRegister = [
     HaydeePanels.HaydeeToolsSkelPanel,
 
     HaydeeExporter.ExportHaydeeDSkel,
-    HaydeeExporter.ExportHaydeeSkel,
     HaydeeExporter.ExportHaydeeDPose,
     HaydeeExporter.ExportHaydeeDMotion,
     HaydeeExporter.ExportHaydeeDMesh,
@@ -122,31 +121,11 @@ classesToRegister = [
 ]
 
 
-if bpy.app.version < (2, 80, 0):
-    def register_classes_factory(classes):
-        """
-        Utility function to create register and unregister functions
-        which simply registers and unregisters a sequence of classes.
-        """
-        def register():
-            from bpy.utils import register_class
-            for cls in classes:
-                register_class(cls)
-
-        def unregister():
-            from bpy.utils import unregister_class
-            for cls in reversed(classes):
-                unregister_class(cls)
-
-        return register, unregister
-
-
 #Use factory to create method to register and unregister the classes
 registerClasses, unregisterClasses = bpy.utils.register_classes_factory(classesToRegister)
 
 
 def register():
-    # print('Registering %s' % __name__)
     HaydeeMenuIcon.registerCustomIcon()
     registerClasses()
     HaydeeExporter.register()
@@ -155,7 +134,6 @@ def register():
 
 
 def unregister():
-    # print('Unregistering %s' % __name__)
     addon_updater_ops.unregister()
     HaydeeExporter.unregister()
     HaydeeImporter.unregister()

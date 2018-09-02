@@ -57,7 +57,7 @@ def recurBonesOrigin(progress, parentBone, jointNames, mats):
                          (-1, 0, 0, 0),
                          ( 0, 0, 0, 1)))
 
-            childBone.matrix = parentBone.matrix * (x1 * mat * x2)
+            childBone.matrix = parentBone.matrix @ (x1 @ mat @ x2)
             recurBonesOrigin(progress, childBone, jointNames, mats)
             progress.step()
 
@@ -225,7 +225,7 @@ def read_skel(operator, context, filepath):
                 for rootBone in rootBones:
                     idx = jointNames.index(rootBone.name)
                     mat = mats[idx]
-                    rootBone.matrix = swap_rows * mat * swap_cols
+                    rootBone.matrix = swap_rows @ mat @ swap_cols
                     recurBonesOrigin(progress, rootBone, jointNames, mats)
                     progress.step()
                 progress.leave_substeps("aligning bones end")
@@ -332,7 +332,7 @@ def read_skel(operator, context, filepath):
                             boneGroup.color_set = 'THEME14'
                         pose_bone.bone_group = boneGroup
                         driver = armature_ob.driver_add('pose.bones["'+bone_name+'"].rotation_quaternion')
-                        expression = '(mld.to_quaternion().inverted() * mls.to_quaternion() * mbs.to_quaternion() * mls.to_quaternion().inverted() * mld.to_quaternion()).slerp(((1,0,0,0)),.5)'
+                        expression = '(mld.to_quaternion().inverted() @ mls.to_quaternion() @ mbs.to_quaternion() @ mls.to_quaternion().inverted() @ mld.to_quaternion()).slerp(((1,0,0,0)),.5)'
                         build_driver(driver, expression, 0, bone_name, target_name)
                         build_driver(driver, expression, 1, bone_name, target_name)
                         build_driver(driver, expression, 2, bone_name, target_name)
@@ -372,7 +372,7 @@ class ImportHaydeeSkel(Operator, ImportHelper):
     bl_idname = "haydee_importer.skel"
     bl_label = "Import Haydee Skel (.skel)"
     filename_ext = ".skel"
-    filter_glob = StringProperty(
+    filter_glob : StringProperty(
             default="*.skel",
             options={'HIDDEN'},
             maxlen=255,  # Max internal buffer length, longer would be clamped.
@@ -394,7 +394,7 @@ def recurBonesOriginDSkel(progress, parentBone, jointNames, jointAxis, jointOrig
             mat = Quaternion(jointAxis[idx]).to_matrix().to_4x4()
             pos = Vector(jointOrigin[idx])
             mat.translation = vectorSwapSkel(pos)
-            childBone.matrix = SWAP_ROW_SKEL * mat * SWAP_COL_SKEL
+            childBone.matrix = SWAP_ROW_SKEL @ mat @ SWAP_COL_SKEL
             recurBonesOriginDSkel(progress, childBone, jointNames, jointAxis, jointOrigin)
             progress.step()
 
@@ -523,7 +523,7 @@ def read_dskel(operator, context, filepath):
                     mat = Quaternion(jointAxis[idx]).to_matrix().to_4x4()
                     pos = Vector(jointOrigin[idx])
                     mat.translation = vectorSwapSkel(pos)
-                    rootBone.matrix = SWAP_ROW_SKEL * mat * SWAP_ROW_SKEL
+                    rootBone.matrix = SWAP_ROW_SKEL @ mat @ SWAP_ROW_SKEL
                     recurBonesOriginDSkel(progress, rootBone, jointNames, jointAxis, jointOrigin)
                     progress.step()
                 progress.leave_substeps("aligning bones end")
@@ -552,7 +552,7 @@ class ImportHaydeeDSkel(Operator, ImportHelper):
     bl_idname = "haydee_importer.dskel"
     bl_label = "Import Haydee DSkel (.dskel)"
     filename_ext = ".dskel"
-    filter_glob = StringProperty(
+    filter_glob : StringProperty(
             default="*.dskel",
             options={'HIDDEN'},
             maxlen=255,  # Max internal buffer length, longer would be clamped.
@@ -584,8 +584,8 @@ def recurBonesOriginMesh(progress, parentBone, jointNames, jointAxis, jointOrigi
                        ( 0, 1, 0, 0),
                        ( 0, 0, 0, 1)))
 
-            mat = parentBone.matrix * (x1 * mat * x2)
-            pos = parentBone.matrix * Vector((-pos.z, pos.x, pos.y))
+            mat = parentBone.matrix @ (x1 @ mat @ x2)
+            pos = parentBone.matrix @ Vector((-pos.z, pos.x, pos.y))
             mat.translation = pos
             childBone.matrix = mat
 
@@ -773,7 +773,7 @@ def read_dmesh(operator, context, filepath):
                     mat = Quaternion(jointAxis[idx]).to_matrix().to_4x4()
                     pos = Vector(jointOrigin[idx])
                     mat.translation = vectorSwapSkel(pos)
-                    rootBone.matrix = SWAP_ROW_SKEL * mat * SWAP_COL_SKEL
+                    rootBone.matrix = SWAP_ROW_SKEL @ mat @ SWAP_COL_SKEL
                     recurBonesOriginMesh(progress, rootBone, jointNames, jointAxis, jointOrigin)
                     progress.step()
                 progress.leave_substeps("aligning bones end")
@@ -786,7 +786,7 @@ def read_dmesh(operator, context, filepath):
                         boneVec = bone.tail - bone.head
                         norm = proxVec.dot(boneVec) / boneVec.dot(boneVec)
                         if (norm > 0.1):
-                            proyVec = norm * boneVec
+                            proyVec = norm @ boneVec
                             dist = (proxVec - proyVec).length
                             if (dist < 0.001):
                                 bone.tail = center
@@ -902,7 +902,7 @@ def read_dmesh(operator, context, filepath):
                         if bone:
                             vertGroup = mesh_obj.vertex_groups.get(boneName)
                             if not vertGroup:
-                                vertGroup = mesh_obj.vertex_groups.new(boneName)
+                                vertGroup = mesh_obj.vertex_groups.new(name=boneName)
                             vertGroup.add([vertDic.index(w[0])], w[2], 'REPLACE')
                 progress.leave_substeps("weights end")
 
@@ -928,9 +928,9 @@ def read_dmesh(operator, context, filepath):
 
 class ImportHaydeeDMesh(Operator, ImportHelper):
     bl_idname = "haydee_importer.dmesh"
-    bl_label = "Import Haydee dmesh"
+    bl_label = "Import Haydee DMesh (.dmesh)"
     filename_ext = ".dmesh"
-    filter_glob = StringProperty(
+    filter_glob : StringProperty(
             default="*.dmesh",
             options={'HIDDEN'},
             maxlen=255,  # Max internal buffer length, longer would be clamped.
@@ -1060,9 +1060,9 @@ def read_mesh(operator, context, filepath, outfitName):
 
 class ImportHaydeeMesh(Operator, ImportHelper):
     bl_idname = "haydee_importer.mesh"
-    bl_label = "Import Haydee mesh"
+    bl_label = "Import Haydee mesh (.mesh)"
     filename_ext = ".mesh"
-    filter_glob = StringProperty(
+    filter_glob : StringProperty(
             default="*.mesh",
             options={'HIDDEN'},
             maxlen=255,  # Max internal buffer length, longer would be clamped.
@@ -1161,11 +1161,11 @@ def read_motion(operator, context, filepath):
             m.translation = origin
 
             if bone.parent:
-                m = pose.parent.matrix * m
+                m = pose.parent.matrix @ m
             else:
                 origin = Vector([-x, -z, y])
                 m.translation = origin
-                m = m * r.to_matrix().to_4x4()
+                m = m @ r.to_matrix().to_4x4()
 
             pose.matrix = m
 
@@ -1186,7 +1186,7 @@ class ImportHaydeeMotion(Operator, ImportHelper):
     bl_idname = "haydee_importer.motion"
     bl_label = "Import Haydee Motion (.motion)"
     filename_ext = ".motion"
-    filter_glob = StringProperty(
+    filter_glob : StringProperty(
             default="*.motion",
             options={'HIDDEN'},
             maxlen=255,  # Max internal buffer length, longer would be clamped.
@@ -1208,7 +1208,7 @@ class ImportHaydeeDMotion(Operator, ImportHelper):
     bl_idname = "haydee_importer.dmot"
     bl_label = "Import Haydee DMotion (.dmot)"
     filename_ext = ".dmot"
-    filter_glob = StringProperty(
+    filter_glob : StringProperty(
             default="*.dmot",
             options={'HIDDEN'},
             maxlen=255,  # Max internal buffer length, longer would be clamped.
@@ -1292,11 +1292,11 @@ def read_pose(operator, context, filepath):
         m.translation = origin
 
         if bone.parent:
-            m = pose.parent.matrix * m
+            m = pose.parent.matrix @ m
         else:
             origin = Vector([-x, -z, y])
             m.translation = origin
-            m = m * r.to_matrix().to_4x4()
+            m = m @ r.to_matrix().to_4x4()
 
         pose.matrix = m
 
@@ -1308,7 +1308,7 @@ class ImportHaydeePose(Operator, ImportHelper):
     bl_idname = "haydee_importer.pose"
     bl_label = "Import Haydee Pose (.pose)"
     filename_ext = ".pose"
-    filter_glob = StringProperty(
+    filter_glob : StringProperty(
             default="*.pose",
             options={'HIDDEN'},
             maxlen=255,  # Max internal buffer length, longer would be clamped.
@@ -1330,7 +1330,7 @@ class ImportHaydeeDPose(Operator, ImportHelper):
     bl_idname = "haydee_importer.dpose"
     bl_label = "Import Haydee DPose (.dpose)"
     filename_ext = ".dpose"
-    filter_glob = StringProperty(
+    filter_glob : StringProperty(
             default="*.dpose",
             options={'HIDDEN'},
             maxlen=255,  # Max internal buffer length, longer would be clamped.
@@ -1344,6 +1344,7 @@ class ImportHaydeeDPose(Operator, ImportHelper):
 #  .outfit importer
 # --------------------------------------------------------------------------------
 
+#profile
 def read_outfit(operator, context, filepath):
     print('Outfit:', filepath)
     with ProgressReport(context.window_manager) as progReport:
@@ -1465,7 +1466,7 @@ class ImportHaydeeOutfit(Operator, ImportHelper):
     bl_idname = "haydee_importer.outfit"
     bl_label = "Import Haydee Outfit (.outfit)"
     filename_ext = ".outfit"
-    filter_glob = StringProperty(
+    filter_glob : StringProperty(
             default="*.outfit",
             options={'HIDDEN'},
             maxlen=255,  # Max internal buffer length, longer would be clamped.
@@ -1567,7 +1568,7 @@ def read_skin(operator, context, filepath, armature_ob):
                         boneName = bone_data[boneIdx]['name']
                         vertGroup = mesh_obj.vertex_groups.get(boneName)
                         if not vertGroup:
-                            vertGroup = mesh_obj.vertex_groups.new(boneName)
+                            vertGroup = mesh_obj.vertex_groups.new(name=boneName)
                         vertGroup.add([vertIdx], vertexWeight, 'REPLACE')
 
             if not armature_ob:
@@ -1599,10 +1600,10 @@ def read_skin(operator, context, filepath, armature_ob):
                     mat = b_data['mat']
                     editBone = armature_ob.data.edit_bones.new(boneName)
                     editBone.tail = Vector(editBone.head) + Vector((0, 0, 10))
-                    pos = Vector(mat.to_3x3() * mat.row[3].xyz)
+                    pos = Vector(mat.to_3x3() @ mat.row[3].xyz)
                     mat.translation = (-pos.x, -pos.y, -pos.z)
                     #print(boneName,mat)
-                    editBone.matrix = swap_rows * mat * swap_cols
+                    editBone.matrix = swap_rows @ mat @ swap_cols
                 progress.step()
 
             bpy.ops.object.mode_set(mode='OBJECT')
@@ -1625,7 +1626,7 @@ class ImportHaydeeSkin(Operator, ImportHelper):
     bl_idname = "haydee_importer.skin"
     bl_label = "Import Haydee Skin (.skin)"
     filename_ext = ".skin"
-    filter_glob = StringProperty(
+    filter_glob : StringProperty(
             default="*.skin",
             options={'HIDDEN'},
             maxlen=255,  # Max internal buffer length, longer would be clamped.
@@ -1677,6 +1678,7 @@ def read_material(operator, context, filepath):
             normalMap = None
             specularMap = None
             emissionMap = None
+            blend = None
 
             #steps = len(data.getvalue().splitlines()) - 1
             progress.enter_substeps(1, "Parse Data")
@@ -1704,6 +1706,8 @@ def read_material(operator, context, filepath):
                     specularMap = line_split[1].replace('"','')
                 if (line_start == 'emissionMap' and level == 1):
                     emissionMap = line_split[1].replace('"','')
+                if (line_start == 'type' and level == 1):
+                    blend = line_split[1].replace('"','')
 
             obj = bpy.context.view_layer.objects.active
             basedir = os.path.dirname(filepath)
@@ -1720,7 +1724,11 @@ def read_material(operator, context, filepath):
             if emissionMap:
                 emissionMap = haydeeFilepath(basedir, emissionMap)
 
-            create_material(obj, matName, diffuseMap, normalMap, specularMap, emissionMap)
+            useAlpha = False
+            if blend == 'MASK':
+                useAlpha = True
+
+            create_material(obj, useAlpha, matName, diffuseMap, normalMap, specularMap, emissionMap)
 
     return {'FINISHED'}
 
@@ -1729,7 +1737,7 @@ class ImportHaydeeMaterial(Operator, ImportHelper):
     bl_idname = "haydee_importer.material"
     bl_label = "Import Haydee Material (.mtl)"
     filename_ext = ".mtl"
-    filter_glob = StringProperty(
+    filter_glob : StringProperty(
             default="*.mtl",
             options={'HIDDEN'},
             maxlen=255,  # Max internal buffer length, longer would be clamped.

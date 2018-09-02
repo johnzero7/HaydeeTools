@@ -20,7 +20,7 @@ class HaydeeToolsImportPanel(_HaydeeToolsPanel, bpy.types.Panel):
         layout = self.layout
         col = layout.column()
 
-        col.label('Outfit:')
+        col.label(text='Outfit:')
         # c = col.column()
         r = col.row(align=True)
         r1c1 = r.column(align=True)
@@ -29,7 +29,7 @@ class HaydeeToolsImportPanel(_HaydeeToolsPanel, bpy.types.Panel):
         # col.separator()
         col = layout.column()
 
-        col.label('Mesh:')
+        col.label(text='Mesh:')
         # c = col.column()
         r = col.row(align=True)
         r1c1 = r.column(align=True)
@@ -40,7 +40,7 @@ class HaydeeToolsImportPanel(_HaydeeToolsPanel, bpy.types.Panel):
         # col.separator()
         col = layout.column()
 
-        col.label('Skeleton:')
+        col.label(text='Skeleton:')
         # c = col.column()
         r = col.row(align=True)
         r1c1 = r.column(align=True)
@@ -51,18 +51,18 @@ class HaydeeToolsImportPanel(_HaydeeToolsPanel, bpy.types.Panel):
         # col.separator()
         col = layout.column()
 
-        col.label('Motion:')
+        col.label(text='Motion:')
         # c = col.column()
         r = col.row(align=True)
         r1c1 = r.column(align=True)
-        r1c1.operator("haydee_importer.dmot", text='Dmotion', icon='NONE')
+        r1c1.operator("haydee_importer.dmot", text='DMotion', icon='NONE')
         r1c2 = r.column(align=True)
         r1c2.operator('haydee_importer.motion', text='Motion')
 
         # col.separator()
         col = layout.column()
 
-        col.label('Pose:')
+        col.label(text='Pose:')
         # c = col.column()
         r = col.row(align=True)
         r1c1 = r.column(align=True)
@@ -73,7 +73,7 @@ class HaydeeToolsImportPanel(_HaydeeToolsPanel, bpy.types.Panel):
         # col.separator()
         col = layout.column()
 
-        col.label('Skin:')
+        col.label(text='Skin:')
         # c = col.column()
         r = col.row(align=True)
         r1c1 = r.column(align=True)
@@ -82,7 +82,7 @@ class HaydeeToolsImportPanel(_HaydeeToolsPanel, bpy.types.Panel):
         # col.separator()
         col = layout.column()
 
-        col.label('Material:')
+        col.label(text='Material:')
         # c = col.column()
         r = col.row(align=True)
         r1c1 = r.column(align=True)
@@ -98,7 +98,7 @@ class HaydeeToolsExportPanel(_HaydeeToolsPanel, bpy.types.Panel):
         layout = self.layout
         col = layout.column()
 
-        col.label('Mesh:')
+        col.label(text='Mesh:')
         # c = col.column()
         r = col.row(align=True)
         r.operator("haydee_exporter.dmesh", text='DMesh', icon='NONE')
@@ -117,14 +117,14 @@ class HaydeeToolsExportPanel(_HaydeeToolsPanel, bpy.types.Panel):
         # col.separator()
         col = layout.column()
 
-        col.label('Pose:')
+        col.label(text='Pose:')
         c = col.column(align=True)
         c.operator('haydee_exporter.dpose', text='DPose')
 
         # col.separator()
         col = layout.column()
 
-        col.label('Motion:')
+        col.label(text='Motion:')
         c = col.column(align=True)
         c.operator('haydee_exporter.dmot', text='DMot')
 
@@ -138,7 +138,7 @@ class HaydeeToolsSkelPanel(_HaydeeToolsPanel, bpy.types.Panel):
         layout = self.layout
         col = layout.column()
 
-        col.label('Fit Armature/Mesh:')
+        col.label(text='Fit Armature/Mesh:')
         # c = col.column()
         r = col.row(align=True)
         r1c1 = r.column(align=True)

@@ -36,7 +36,7 @@ def write_dskel(operator, context, filepath):
     for bone in bones:
         head = bone.head_local.xzy
         q = bone.matrix_local.to_quaternion()
-        q = (q * r)
+        q = (q @ r)
         q = Quaternion([-q.w, q.x, q.y, -q.z])
 
         bone_name = boneRenameHaydee(bone.name)
@@ -68,7 +68,7 @@ class ExportHaydeeDSkel(Operator, ExportHelper):
     bl_idname = "haydee_exporter.dskel"
     bl_label = "Export Haydee DSkel (.dskel)"
     filename_ext = ".dskel"
-    filter_glob = StringProperty(
+    filter_glob : StringProperty(
             default="*.dskel",
             options={'HIDDEN'},
             maxlen=255,  # Max internal buffer length, longer would be clamped.
@@ -100,11 +100,11 @@ def write_dpose(operator, context, filepath):
     for bone in bones:
         head = bone.head.xzy
         q = bone.matrix.to_quaternion()
-        q = -(q * r)
+        q = -(q @ r)
         if bone.parent:
-            head = bone.parent.matrix.inverted().to_quaternion() * (bone.head - bone.parent.head)
+            head = bone.parent.matrix.inverted().to_quaternion() @ (bone.head - bone.parent.head)
             head = Vector((-head.y, head.z, head.x))
-            q = (bone.parent.matrix.to_3x3().inverted() * bone.matrix.to_3x3()).to_quaternion()
+            q = (bone.parent.matrix.to_3x3().inverted() @ bone.matrix.to_3x3()).to_quaternion()
             q = Quaternion([q.z, -q.y, q.x, -q.w])
 
         f.write("\ttransform %s %s %s %s %s %s %s %s;\n" % (
@@ -121,7 +121,7 @@ class ExportHaydeeDPose(Operator, ExportHelper):
     bl_idname = "haydee_exporter.dpose"
     bl_label = "Export Haydee DPose (.dpose)"
     filename_ext = ".dpose"
-    filter_glob = StringProperty(
+    filter_glob : StringProperty(
             default="*.dpose",
             options={'HIDDEN'},
             maxlen=255,  # Max internal buffer length, longer would be clamped.
@@ -163,11 +163,11 @@ def write_dmot(operator, context, filepath):
 
             head = bone.head.xzy
             q = bone.matrix.to_quaternion()
-            q = -(q * r)
+            q = -(q @ r)
             if bone.parent:
-                head = bone.parent.matrix.inverted().to_quaternion() * (bone.head - bone.parent.head)
+                head = bone.parent.matrix.inverted().to_quaternion() @ (bone.head - bone.parent.head)
                 head = Vector((-head.y, head.z, head.x))
-                q = (bone.parent.matrix.to_3x3().inverted() * bone.matrix.to_3x3()).to_quaternion()
+                q = (bone.parent.matrix.to_3x3().inverted() @ bone.matrix.to_3x3()).to_quaternion()
                 q = Quaternion([-q.z, -q.y, q.x, -q.w])
 
             name = boneRenameHaydee(bone.name)
@@ -198,7 +198,7 @@ class ExportHaydeeDMotion(Operator, ExportHelper):
     bl_idname = "haydee_exporter.dmot"
     bl_label = "Export Haydee DMotion (.dmot)"
     filename_ext = ".dmot"
-    filter_glob = StringProperty(
+    filter_glob : StringProperty(
             default="*.dmot",
             options={'HIDDEN'},
             maxlen=255,  # Max internal buffer length, longer would be clamped.
@@ -247,7 +247,8 @@ def write_dmesh(operator, context, filepath, export_skeleton, \
 
     for ob in sorted([x for x in list if x.type=='MESH'], key=lambda ob: ob.name):
         if ob.type == "MESH":
-            if ignore_hidden and ob.hide:
+            #TODO ignore hidden objects
+            if ignore_hidden and ob.hide_viewport:
                 continue
 
             if separate_files:
@@ -257,7 +258,8 @@ def write_dmesh(operator, context, filepath, export_skeleton, \
                 uvs_dict) = reset_variables()
 
             settings = 'PREVIEW'
-            mesh = ob.to_mesh(context.scene, apply_modifiers, settings)
+            #//XXX TO MESH
+            mesh = ob.to_mesh(context.depsgraph, apply_modifiers)
             mat = ob.matrix_world
             vertices = mesh.vertices
             materials = mesh.materials
@@ -327,7 +329,7 @@ def write_dmesh(operator, context, filepath, export_skeleton, \
                 vertex_indexes[value - first_vertex_index] = key
             for index in vertex_indexes:
                 v = vertices[index]
-                co = mat * v.co
+                co = mat @ v.co
                 vertex_output.append("\t\tvert %s %s %s;\n" % (d(-co.x), d(co.z), d(-co.y)))
 
             # Export UV map
@@ -341,7 +343,7 @@ def write_dmesh(operator, context, filepath, export_skeleton, \
             EXPORT_SMOOTH_GROUPS = False
             EXPORT_SMOOTH_GROUPS_BITFLAGS = True
             if (EXPORT_SMOOTH_GROUPS or EXPORT_SMOOTH_GROUPS_BITFLAGS):
-                smooth_groups, smooth_groups_tot = mesh.calc_smooth_groups(EXPORT_SMOOTH_GROUPS_BITFLAGS)
+                smooth_groups, smooth_groups_tot = mesh.calc_smooth_groups(use_bitflags=EXPORT_SMOOTH_GROUPS_BITFLAGS)
                 if smooth_groups_tot <= 1:
                     smooth_groups, smooth_groups_tot = (), 0
             else:
@@ -471,23 +473,23 @@ def write_dmesh(operator, context, filepath, export_skeleton, \
                             bone_index = 0
                             r = Quaternion([0, 0, 1], -pi/2)
                             for bone in bones:
-                                head = mat * bone.head.xyz
+                                head = mat @ bone.head.xyz
                                 q = bone.matrix_local.to_quaternion()
-                                q = q * r
+                                q = q @ r
                                 bone_indexes[bone.name[:NAME_LIMIT]] = bone_index
                                 bone_index += 1
 
                                 bone_name = boneRenameHaydee(bone.name)
 
-                                #print("Bone %s quaternion: %s" % (bone.name, bone.matrix.to_quaternion() * r))
+                                #print("Bone %s quaternion: %s" % (bone.name, bone.matrix.to_quaternion() @ r))
                                 joints_output.append("\t\tjoint %s\n\t\t{\n" % bone_name)
                                 if bone.parent:
                                     parent_name = boneRenameHaydee(bone.parent.name)
                                     joints_output.append("\t\t\tparent %s;\n" % parent_name)
-                                    q = (bone.parent.matrix_local.to_3x3().inverted() * bone.matrix_local.to_3x3()).to_quaternion()
+                                    q = (bone.parent.matrix_local.to_3x3().inverted() @ bone.matrix_local.to_3x3()).to_quaternion()
                                     q = Quaternion([q.w, -q.y, q.x, q.z])
                                     print("%s head: %s parent head: %s" % (bone.name[:NAME_LIMIT], bone.head, bone.parent.head_local))
-                                    head = (mat * bone.parent.matrix_local.inverted()).to_quaternion() * (bone.head_local - bone.parent.head_local)
+                                    head = (mat @ bone.parent.matrix_local.inverted()).to_quaternion() @ (bone.head_local - bone.parent.head_local)
                                     head = Vector((-head.y, head.x, head.z))
 
                                 head = Vector((-head.x, -head.y, head.z))
@@ -607,7 +609,7 @@ class ExportHaydeeDMesh(Operator, ExportHelper):
     bl_idname = "haydee_exporter.dmesh"
     bl_label = "Export Haydee dmesh"
     filename_ext = ".dmesh"
-    filter_glob = StringProperty(
+    filter_glob : StringProperty(
             default="*.dmesh",
             options={'HIDDEN'},
             maxlen=255,  # Max internal buffer length, longer would be clamped.
@@ -615,32 +617,32 @@ class ExportHaydeeDMesh(Operator, ExportHelper):
 
     # List of operator properties, the attributes will be assigned
     # to the class instance from the operator settings before calling.
-    selected_only = BoolProperty(
+    selected_only : BoolProperty(
             name="Selected only",
             description="Export only selected objects (if nothing is selected, full scene will be exported regardless of this setting)",
             default=True,
             )
-    separate_files = BoolProperty(
+    separate_files : BoolProperty(
             name="Export to Separate Files",
             description="Export each object to a separate file",
             default=False,
             )
-    ignore_hidden = BoolProperty(
+    ignore_hidden : BoolProperty(
             name="Ignore hidden",
             description="Ignore hidden objects",
             default=True,
             )
-    apply_modifiers = BoolProperty(
+    apply_modifiers : BoolProperty(
             name="Apply modifiers",
             description="Apply modifiers before exporting",
             default=True,
             )
-    export_skeleton = BoolProperty(
+    export_skeleton : BoolProperty(
             name="Export skeleton",
             description="Export skeleton and vertex weights",
             default=True,
             )
-    material = EnumProperty(
+    material : EnumProperty(
             name="Material",
             description="Material to export",
             items = materials_list
