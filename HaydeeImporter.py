@@ -183,9 +183,9 @@ def read_skel(operator, context, filepath):
                 print('Importing Armature', str(boneCount), 'bones')
 
                 armature_da = bpy.data.armatures.new("Armature")
-                armature_da.draw_type = 'STICK'
+                armature_da.display_type = 'STICK'
                 armature_ob = bpy.data.objects.new("Armature", armature_da)
-                armature_ob.show_x_ray = True
+                armature_ob.show_in_front = True
 
                 bpy.context.scene.collection.objects.link(armature_ob)
                 bpy.context.view_layer.objects.active = armature_ob
@@ -491,9 +491,9 @@ def read_dskel(operator, context, filepath):
                 print('Importing Armature', str(boneCount), 'bones')
 
                 armature_da = bpy.data.armatures.new("Armature")
-                armature_da.draw_type = 'STICK'
+                armature_da.display_type = 'STICK'
                 armature_ob = bpy.data.objects.new("Armature", armature_da)
-                armature_ob.show_x_ray = True
+                armature_ob.show_in_front = True
 
                 bpy.context.scene.collection.objects.link(armature_ob)
                 bpy.context.view_layer.objects.active = armature_ob
@@ -742,9 +742,9 @@ def read_dmesh(operator, context, filepath):
                 print('Importing Armature', str(boneCount), 'bones')
 
                 armature_da = bpy.data.armatures.new("Armature")
-                armature_da.draw_type = 'STICK'
+                armature_da.display_type = 'STICK'
                 armature_ob = bpy.data.objects.new("Armature", armature_da)
-                armature_ob.show_x_ray = True
+                armature_ob.show_in_front = True
 
                 bpy.context.scene.collection.objects.link(armature_ob)
                 bpy.context.view_layer.objects.active = armature_ob
@@ -1577,9 +1577,9 @@ def read_skin(operator, context, filepath, armature_ob):
             if not armature_ob:
                 armature_ob = None
                 armature_da = bpy.data.armatures.new("Armature")
-                armature_da.draw_type = 'STICK'
+                armature_da.display_type = 'STICK'
                 armature_ob = bpy.data.objects.new("Armature", armature_da)
-                armature_ob.show_x_ray = True
+                armature_ob.show_in_front = True
                 bpy.context.scene.collection.objects.link(armature_ob)
 
             bpy.context.view_layer.objects.active = armature_ob
