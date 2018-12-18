@@ -1,9 +1,12 @@
 Haydee Tools
 =========
 Blender an addon to Export/Import Haydee assets.
+With Blender 2.80 Beta released there where many changes.
 
-Import/Export XPS Models, Pose, Animation, etc.
-(Requieres Blender 2.80 up)
+From v1.1.0 of this addon will only work with Blender 2.80+ (and viceversa).
+
+For Blender 2.79 download v1.0.4
+
 
 Main Features:
 
