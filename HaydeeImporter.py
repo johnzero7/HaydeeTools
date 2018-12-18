@@ -10,8 +10,10 @@ from .HaydeeUtils import boneRenameBlender, decodeText
 from .HaydeeNodeMat import create_material
 from .timing import profile
 from . import HaydeeMenuIcon
-from progress_report import ProgressReport, ProgressReportSubstep
-
+from bpy_extras.wm_utils.progress_report import (
+    ProgressReport,
+    ProgressReportSubstep,
+)
 # ImportHelper is a helper class, defines filename and
 # invoke() function which calls the file selector.
 from bpy_extras.io_utils import ImportHelper
@@ -341,7 +343,7 @@ def read_skel(operator, context, filepath):
                         build_driver(driver, expression, 2, bone_name, target_name)
                         build_driver(driver, expression, 3, bone_name, target_name)
 
-            armature_ob.select_set(action='SELECT')
+            armature_ob.select_set(state=True)
 
     #wm.progress_end()
     return {'FINISHED'}
@@ -547,7 +549,7 @@ def read_dskel(operator, context, filepath):
             bpy.ops.object.mode_set(mode='OBJECT')
             progress.leave_substeps("Build armature end")
 
-    armature_ob.select_set(action='SELECT')
+    armature_ob.select_set(state=True)
     return {'FINISHED'}
 
 
@@ -798,7 +800,7 @@ def read_dmesh(operator, context, filepath):
                 progress.leave_substeps("Build armature end")
 
             if armature_ob:
-                armature_ob.select_set(action='SELECT')
+                armature_ob.select_set(state=True)
 
 
             # Create mesh (verts and faces)
@@ -922,7 +924,7 @@ def read_dmesh(operator, context, filepath):
 
                 scene = bpy.context.scene
                 scene.collection.objects.link(mesh_obj)
-                mesh_obj.select_set(action='SELECT')
+                mesh_obj.select_set(state=True)
                 #scene.update()
                 progress.step()
             progress.leave_substeps("creating meshes end")
@@ -1056,7 +1058,7 @@ def read_mesh(operator, context, filepath, outfitName):
             mesh_obj = bpy.data.objects.new(mesh_data.name, mesh_data)
             scene = bpy.context.scene
             scene.collection.objects.link(mesh_obj)
-            mesh_obj.select_set(action='SELECT')
+            mesh_obj.select_set(state=True)
             bpy.context.view_layer.objects.active = mesh_obj
 
     return {'FINISHED'}
@@ -1128,7 +1130,7 @@ def read_motion(operator, context, filepath):
     bpy.ops.object.mode_set(mode='OBJECT')
     bpy.ops.object.select_all(action='DESELECT')
     armature.hide = False
-    armature.select_set(action='SELECT')
+    armature.select_set(state=True)
     bpy.context.view_layer.objects.active = armature
     bpy.ops.object.mode_set(mode='POSE')
 
@@ -1140,7 +1142,7 @@ def read_motion(operator, context, filepath):
     context.scene.frame_start = 1
     context.scene.frame_end = frameCount
     for pose in context.selected_pose_bones:
-        pose.bone.select_set(action='DESELECT')
+        pose.bone.select_set(state=False)
     for frame in range(1, frameCount+1):
         wm.progress_update(frame-1)
         context.scene.frame_current = frame
@@ -1154,7 +1156,7 @@ def read_motion(operator, context, filepath):
             pose = armature.pose.bones[bone_name]
             if not bone:
                 continue
-            bone.select_set(action='SELECT')
+            bone.select_set(state=True)
 
             (x, y, z, qx, qz, qy, qw) = bones[bone_name][frame-1]
 
@@ -1180,7 +1182,7 @@ def read_motion(operator, context, filepath):
             bone = armature.data.bones[bone_name]
             if not bone:
                 continue
-            bone.select_set(action='DESELECT')
+            bone.select_set(state=False)
 
     wm.progress_end()
     return {'FINISHED'}
@@ -1265,7 +1267,7 @@ def read_pose(operator, context, filepath):
     bpy.ops.object.mode_set(mode='OBJECT')
     bpy.ops.object.select_all(action='DESELECT')
     armature.hide = False
-    armature.select_set(action='SELECT')
+    armature.select_set(state=True)
     bpy.context.view_layer.objects.active = armature
     bpy.ops.object.mode_set(mode='POSE')
     bpy.ops.pose.select_all(action='DESELECT')
@@ -1285,7 +1287,7 @@ def read_pose(operator, context, filepath):
         pose = armature.pose.bones.get(bone_name)
         if not bone:
             continue
-        bone.select_set(action='SELECT')
+        bone.select_set(state=True)
 
         (x, y, z, qx, qz, qy, qw) = bones[bone_name]
 
@@ -1459,9 +1461,9 @@ def read_outfit(operator, context, filepath):
                     armature_obj = obj
 
             for obj in imported_meshes:
-                obj.select_set(action='SELECT')
+                obj.select_set(state=True)
             if armature_obj:
-                armature_obj.select_set(action='SELECT')
+                armature_obj.select_set(state=True)
 
     return {'FINISHED'}
 

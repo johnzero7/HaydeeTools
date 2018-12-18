@@ -8,7 +8,10 @@ import re
 from .HaydeeUtils import d, find_armature
 from .HaydeeUtils import boneRenameHaydee, materials_list, stripName, NAME_LIMIT
 from . import HaydeeMenuIcon
-from progress_report import ProgressReport, ProgressReportSubstep
+from bpy_extras.wm_utils.progress_report import (
+    ProgressReport,
+    ProgressReportSubstep,
+)
 
 # ExportHelper is a helper class, defines filename and
 # invoke() function which calls the file selector.

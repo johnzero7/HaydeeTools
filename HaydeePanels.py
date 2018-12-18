@@ -6,7 +6,7 @@ import bpy
 
 class _HaydeeToolsPanel():
     bl_space_type = 'VIEW_3D'
-    bl_region_type = 'TOOLS'
+    bl_region_type = 'UI'
     bl_category = 'Haydee'
     bl_context = 'objectmode'
 
