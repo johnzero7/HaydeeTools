@@ -72,6 +72,7 @@ def write_dskel(operator, context, filepath):
 class ExportHaydeeDSkel(Operator, ExportHelper):
     bl_idname = "haydee_exporter.dskel"
     bl_label = "Export Haydee DSkel (.dskel)"
+    bl_options = {'REGISTER'}
     filename_ext = ".dskel"
     filter_glob : StringProperty(
             default="*.dskel",
@@ -125,6 +126,7 @@ def write_dpose(operator, context, filepath):
 class ExportHaydeeDPose(Operator, ExportHelper):
     bl_idname = "haydee_exporter.dpose"
     bl_label = "Export Haydee DPose (.dpose)"
+    bl_options = {'REGISTER'}
     filename_ext = ".dpose"
     filter_glob : StringProperty(
             default="*.dpose",
@@ -202,6 +204,7 @@ def write_dmot(operator, context, filepath):
 class ExportHaydeeDMotion(Operator, ExportHelper):
     bl_idname = "haydee_exporter.dmot"
     bl_label = "Export Haydee DMotion (.dmot)"
+    bl_options = {'REGISTER'}
     filename_ext = ".dmot"
     filter_glob : StringProperty(
             default="*.dmot",
@@ -613,6 +616,7 @@ def to_file(separate_files, filepath, group_name, base_vertex_index,
 class ExportHaydeeDMesh(Operator, ExportHelper):
     bl_idname = "haydee_exporter.dmesh"
     bl_label = "Export Haydee dmesh"
+    bl_options = {'REGISTER'}
     filename_ext = ".dmesh"
     filter_glob : StringProperty(
             default="*.dmesh",

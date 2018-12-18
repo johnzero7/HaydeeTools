@@ -376,6 +376,7 @@ def build_driver(driver, expression, component, source_bone, target_bone):
 class ImportHaydeeSkel(Operator, ImportHelper):
     bl_idname = "haydee_importer.skel"
     bl_label = "Import Haydee Skel (.skel)"
+    bl_options = {'REGISTER', 'UNDO'}
     filename_ext = ".skel"
     filter_glob : StringProperty(
             default="*.skel",
@@ -556,6 +557,7 @@ def read_dskel(operator, context, filepath):
 class ImportHaydeeDSkel(Operator, ImportHelper):
     bl_idname = "haydee_importer.dskel"
     bl_label = "Import Haydee DSkel (.dskel)"
+    bl_options = {'REGISTER', 'UNDO'}
     filename_ext = ".dskel"
     filter_glob : StringProperty(
             default="*.dskel",
@@ -934,6 +936,7 @@ def read_dmesh(operator, context, filepath):
 class ImportHaydeeDMesh(Operator, ImportHelper):
     bl_idname = "haydee_importer.dmesh"
     bl_label = "Import Haydee DMesh (.dmesh)"
+    bl_options = {'REGISTER', 'UNDO'}
     filename_ext = ".dmesh"
     filter_glob : StringProperty(
             default="*.dmesh",
@@ -1066,6 +1069,7 @@ def read_mesh(operator, context, filepath, outfitName):
 class ImportHaydeeMesh(Operator, ImportHelper):
     bl_idname = "haydee_importer.mesh"
     bl_label = "Import Haydee mesh (.mesh)"
+    bl_options = {'REGISTER', 'UNDO'}
     filename_ext = ".mesh"
     filter_glob : StringProperty(
             default="*.mesh",
@@ -1190,6 +1194,7 @@ def read_motion(operator, context, filepath):
 class ImportHaydeeMotion(Operator, ImportHelper):
     bl_idname = "haydee_importer.motion"
     bl_label = "Import Haydee Motion (.motion)"
+    bl_options = {'REGISTER', 'UNDO'}
     filename_ext = ".motion"
     filter_glob : StringProperty(
             default="*.motion",
@@ -1212,6 +1217,7 @@ def read_dmotion(operator, context, filepath):
 class ImportHaydeeDMotion(Operator, ImportHelper):
     bl_idname = "haydee_importer.dmot"
     bl_label = "Import Haydee DMotion (.dmot)"
+    bl_options = {'REGISTER', 'UNDO'}
     filename_ext = ".dmot"
     filter_glob : StringProperty(
             default="*.dmot",
@@ -1312,6 +1318,7 @@ def read_pose(operator, context, filepath):
 class ImportHaydeePose(Operator, ImportHelper):
     bl_idname = "haydee_importer.pose"
     bl_label = "Import Haydee Pose (.pose)"
+    bl_options = {'REGISTER', 'UNDO'}
     filename_ext = ".pose"
     filter_glob : StringProperty(
             default="*.pose",
@@ -1334,6 +1341,7 @@ def read_dpose(operator, context, filepath):
 class ImportHaydeeDPose(Operator, ImportHelper):
     bl_idname = "haydee_importer.dpose"
     bl_label = "Import Haydee DPose (.dpose)"
+    bl_options = {'REGISTER', 'UNDO'}
     filename_ext = ".dpose"
     filter_glob : StringProperty(
             default="*.dpose",
@@ -1470,6 +1478,7 @@ def read_outfit(operator, context, filepath):
 class ImportHaydeeOutfit(Operator, ImportHelper):
     bl_idname = "haydee_importer.outfit"
     bl_label = "Import Haydee Outfit (.outfit)"
+    bl_options = {'REGISTER', 'UNDO'}
     filename_ext = ".outfit"
     filter_glob : StringProperty(
             default="*.outfit",
@@ -1630,6 +1639,7 @@ def read_skin(operator, context, filepath, armature_ob):
 class ImportHaydeeSkin(Operator, ImportHelper):
     bl_idname = "haydee_importer.skin"
     bl_label = "Import Haydee Skin (.skin)"
+    bl_options = {'REGISTER', 'UNDO'}
     filename_ext = ".skin"
     filter_glob : StringProperty(
             default="*.skin",
@@ -1741,6 +1751,7 @@ def read_material(operator, context, filepath):
 class ImportHaydeeMaterial(Operator, ImportHelper):
     bl_idname = "haydee_importer.material"
     bl_label = "Import Haydee Material (.mtl)"
+    bl_options = {'REGISTER', 'UNDO'}
     filename_ext = ".mtl"
     filter_glob : StringProperty(
             default="*.mtl",
