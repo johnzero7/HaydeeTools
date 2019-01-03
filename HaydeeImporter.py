@@ -23,6 +23,7 @@ from bpy.types import Operator
 from mathutils import *
 from math import pi
 
+ARMATURE_NAME = 'Skeleton'
 
 #Swap matrix rows
 SWAP_ROW_SKEL = Matrix((( 0, 0, 1, 0),
@@ -40,6 +41,36 @@ SWAP_COL_SKEL = Matrix((( 1, 0, 0, 0),
 def vectorSwapSkel(vec):
     return Vector((-vec.z, vec.y, -vec.x))
 
+
+def createCollection(name="Haydee Model"):
+    #Create a collection with specific name
+    collection = bpy.data.collections.new(name)
+    bpy.context.scene.collection.children.link(collection)
+    return collection
+
+
+def linkToActiveCollection(obj):
+    # link object to active collection
+    bpy.context.collection.objects.link(obj)
+
+
+def recurLayerCollection(layerColl, collName):
+    # transverse the layer_collection tree looking for a collection named collName
+    found = None
+    if (layerColl.name == collName):
+        return layerColl
+    for layer in layerColl.children:
+        found = recurLayerCollection(layer, collName)
+        if found:
+            return found
+
+
+def setActiveCollection(collName):
+    # set collName as the active collection
+    layer_collection = bpy.context.view_layer.layer_collection
+    layerColl = recurLayerCollection(layer_collection, collName)
+    if layerColl:
+        bpy.context.view_layer.active_layer_collection = layerColl
 
 
 # --------------------------------------------------------------------------------
@@ -184,12 +215,15 @@ def read_skel(operator, context, filepath):
                 progress.enter_substeps(boneCount, "Build armature")
                 print('Importing Armature', str(boneCount), 'bones')
 
-                armature_da = bpy.data.armatures.new("Armature")
+                armature_da = bpy.data.armatures.new(ARMATURE_NAME)
                 armature_da.display_type = 'STICK'
-                armature_ob = bpy.data.objects.new("Armature", armature_da)
+                armature_ob = bpy.data.objects.new(ARMATURE_NAME, armature_da)
                 armature_ob.show_in_front = True
 
-                bpy.context.scene.collection.objects.link(armature_ob)
+                collection = createCollection(ARMATURE_NAME)
+                setActiveCollection(ARMATURE_NAME)
+                linkToActiveCollection(armature_ob)
+
                 bpy.context.view_layer.objects.active = armature_ob
                 bpy.ops.object.mode_set(mode='EDIT')
 
@@ -493,12 +527,15 @@ def read_dskel(operator, context, filepath):
                 progress.enter_substeps(boneCount, "Build armature")
                 print('Importing Armature', str(boneCount), 'bones')
 
-                armature_da = bpy.data.armatures.new("Armature")
+                armature_da = bpy.data.armatures.new(ARMATURE_NAME)
                 armature_da.display_type = 'STICK'
-                armature_ob = bpy.data.objects.new("Armature", armature_da)
+                armature_ob = bpy.data.objects.new(ARMATURE_NAME, armature_da)
                 armature_ob.show_in_front = True
 
-                bpy.context.scene.collection.objects.link(armature_ob)
+                collection = createCollection(ARMATURE_NAME)
+                setActiveCollection(ARMATURE_NAME)
+                linkToActiveCollection(armature_ob)
+
                 bpy.context.view_layer.objects.active = armature_ob
                 bpy.ops.object.mode_set(mode='EDIT')
 
@@ -624,6 +661,11 @@ def read_dmesh(operator, context, filepath):
             bpy.ops.object.select_all(action='DESELECT')
             print("Importing mesh: %s" % filepath)
 
+            basename = os.path.basename(filepath)
+            collName = os.path.splitext(basename)[0]
+            collection = createCollection(collName)
+            setActiveCollection(collName)
+
             vert_data = None
             uv_data = None
             face_data = None
@@ -745,12 +787,12 @@ def read_dmesh(operator, context, filepath):
                 progress.enter_substeps(boneCount, "Build armature")
                 print('Importing Armature', str(boneCount), 'bones')
 
-                armature_da = bpy.data.armatures.new("Armature")
+                armature_da = bpy.data.armatures.new(ARMATURE_NAME)
                 armature_da.display_type = 'STICK'
-                armature_ob = bpy.data.objects.new("Armature", armature_da)
+                armature_ob = bpy.data.objects.new(ARMATURE_NAME, armature_da)
                 armature_ob.show_in_front = True
 
-                bpy.context.scene.collection.objects.link(armature_ob)
+                linkToActiveCollection(armature_ob)
                 bpy.context.view_layer.objects.active = armature_ob
                 bpy.ops.object.mode_set(mode='EDIT')
 
@@ -924,8 +966,7 @@ def read_dmesh(operator, context, filepath):
                     mod.object = armature_ob
                 progress.leave_substeps("parent end")
 
-                scene = bpy.context.scene
-                scene.collection.objects.link(mesh_obj)
+                linkToActiveCollection(mesh_obj)
                 mesh_obj.select_set(state=True)
                 #scene.update()
                 progress.step()
@@ -1059,8 +1100,7 @@ def read_mesh(operator, context, filepath, outfitName):
             mesh_data.use_auto_smooth = True
 
             mesh_obj = bpy.data.objects.new(mesh_data.name, mesh_data)
-            scene = bpy.context.scene
-            scene.collection.objects.link(mesh_obj)
+            linkToActiveCollection(mesh_obj)
             mesh_obj.select_set(state=True)
             bpy.context.view_layer.objects.active = mesh_obj
 
@@ -1427,6 +1467,10 @@ def read_outfit(operator, context, filepath):
             basedir = os.path.dirname(filepath)
             armature_obj = None
             imported_meshes = []
+
+            collection = createCollection(outfitName)
+            setActiveCollection(outfitName)
+
             for obj in combo:
                 meshpath = None
                 skinpath = None
@@ -1587,11 +1631,11 @@ def read_skin(operator, context, filepath, armature_ob):
 
             if not armature_ob:
                 armature_ob = None
-                armature_da = bpy.data.armatures.new("Armature")
+                armature_da = bpy.data.armatures.new(ARMATURE_NAME)
                 armature_da.display_type = 'STICK'
-                armature_ob = bpy.data.objects.new("Armature", armature_da)
+                armature_ob = bpy.data.objects.new(ARMATURE_NAME, armature_da)
                 armature_ob.show_in_front = True
-                bpy.context.scene.collection.objects.link(armature_ob)
+                linkToActiveCollection(armature_ob)
 
             bpy.context.view_layer.objects.active = armature_ob
             bpy.ops.object.mode_set(mode='EDIT')
