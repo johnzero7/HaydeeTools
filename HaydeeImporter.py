@@ -10,8 +10,10 @@ from .HaydeeUtils import boneRenameBlender, decodeText
 from .HaydeeNodeMat import create_material
 from .timing import profile
 from . import HaydeeMenuIcon
-from progress_report import ProgressReport, ProgressReportSubstep
-
+try:
+    from progress_report import ProgressReport, ProgressReportSubstep
+except ImportError:
+    from bpy_extras.wm_utils.progress_report import ProgressReport, ProgressReportSubstep
 
 # ImportHelper is a helper class, defines filename and
 # invoke() function which calls the file selector.
