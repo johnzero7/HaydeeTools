@@ -3,7 +3,7 @@ Haydee Tools
 Blender an addon to Export/Import Haydee assets.
 
 Import/Export XPS Models, Pose, Animation, etc.
-(Requieres Blender 2.70 up)
+(Requieres Blender 2.79)
 
 Main Features:
 

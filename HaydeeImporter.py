@@ -5,10 +5,13 @@ import struct
 import math
 import io
 import codecs
-from . import HaydeeMenuIcon
-from .HaydeeUtils import boneRenameBlender, d, find_armature, decodeText
+from .HaydeeUtils import d, find_armature
+from .HaydeeUtils import boneRenameBlender, decodeText
 from .HaydeeNodeMat import create_material
+from .timing import profile
+from . import HaydeeMenuIcon
 from progress_report import ProgressReport, ProgressReportSubstep
+
 
 # ImportHelper is a helper class, defines filename and
 # invoke() function which calls the file selector.
@@ -929,7 +932,7 @@ def read_dmesh(operator, context, filepath):
 
 class ImportHaydeeDMesh(Operator, ImportHelper):
     bl_idname = "haydee_importer.dmesh"
-    bl_label = "Import Haydee dmesh"
+    bl_label = "Import Haydee DMesh (.dmesh)"
     filename_ext = ".dmesh"
     filter_glob = StringProperty(
             default="*.dmesh",
@@ -1061,7 +1064,7 @@ def read_mesh(operator, context, filepath, outfitName):
 
 class ImportHaydeeMesh(Operator, ImportHelper):
     bl_idname = "haydee_importer.mesh"
-    bl_label = "Import Haydee mesh"
+    bl_label = "Import Haydee mesh (.mesh)"
     filename_ext = ".mesh"
     filter_glob = StringProperty(
             default="*.mesh",
@@ -1201,7 +1204,7 @@ class ImportHaydeeMotion(Operator, ImportHelper):
 #  .dmot importer
 # --------------------------------------------------------------------------------
 
-def read_dmot(operator, context, filepath):
+def read_dmotion(operator, context, filepath):
     return {'FINISHED'}
 
 
@@ -1216,7 +1219,7 @@ class ImportHaydeeDMotion(Operator, ImportHelper):
             )
 
     def execute(self, context):
-        return read_dmot(self, context, self.filepath)
+        return read_dmotion(self, context, self.filepath)
 
 
 # --------------------------------------------------------------------------------
@@ -1345,6 +1348,7 @@ class ImportHaydeeDPose(Operator, ImportHelper):
 #  .outfit importer
 # --------------------------------------------------------------------------------
 
+#profile
 def read_outfit(operator, context, filepath):
     print('Outfit:', filepath)
     with ProgressReport(context.window_manager) as progReport:
@@ -1679,6 +1683,7 @@ def read_material(operator, context, filepath):
             normalMap = None
             specularMap = None
             emissionMap = None
+            blend = None
 
             #steps = len(data.getvalue().splitlines()) - 1
             progress.enter_substeps(1, "Parse Data")
@@ -1706,6 +1711,8 @@ def read_material(operator, context, filepath):
                     specularMap = line_split[1].replace('"','')
                 if (line_start == 'emissionMap' and level == 1):
                     emissionMap = line_split[1].replace('"','')
+                if (line_start == 'type' and level == 1):
+                    blend = line_split[1].replace('"','')
 
             obj = bpy.context.scene.objects.active
             basedir = os.path.dirname(filepath)
@@ -1722,7 +1729,11 @@ def read_material(operator, context, filepath):
             if emissionMap:
                 emissionMap = haydeeFilepath(basedir, emissionMap)
 
-            create_material(obj, matName, diffuseMap, normalMap, specularMap, emissionMap)
+            useAlpha = False
+            if blend == 'MASK':
+                useAlpha = True
+
+            create_material(obj, useAlpha, matName, diffuseMap, normalMap, specularMap, emissionMap)
 
     return {'FINISHED'}
 

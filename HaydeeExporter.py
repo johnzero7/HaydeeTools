@@ -5,9 +5,11 @@ import struct
 import math
 import io
 import re
+from .HaydeeUtils import d, find_armature
+from .HaydeeUtils import boneRenameHaydee, materials_list, stripName, NAME_LIMIT
 from . import HaydeeMenuIcon
-from .HaydeeUtils import boneRenameHaydee, d, find_armature, materials_list, stripName, NAME_LIMIT
 from progress_report import ProgressReport, ProgressReportSubstep
+
 
 # ExportHelper is a helper class, defines filename and
 # invoke() function which calls the file selector.
@@ -19,9 +21,9 @@ from mathutils import *
 from math import pi
 
 
-# --------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 #  .dskel exporter
-# --------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 def write_dskel(operator, context, filepath):
     armature = find_armature(operator, context)
@@ -667,10 +669,9 @@ class HaydeeExportSubMenu(bpy.types.Menu):
     def draw(self, context):
         layout = self.layout
         layout.operator(ExportHaydeeDMesh.bl_idname, text="Haydee DMesh (.dmesh)")
-        #layout.operator(ExportHaydeeSkel.bl_idname, text="Haydee Skel (.skel)")
         layout.operator(ExportHaydeeDSkel.bl_idname, text="Haydee DSkel (.dskel)")
-        layout.operator(ExportHaydeeDMotion.bl_idname, text="Haydee DMotion (.dmot)")
         layout.operator(ExportHaydeeDPose.bl_idname, text="Haydee DPose (.dpose)")
+        layout.operator(ExportHaydeeDMotion.bl_idname, text="Haydee DMotion (.dmot)")
 
 
 def menu_func_export(self, context):
