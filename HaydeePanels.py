@@ -1,8 +1,7 @@
-# -*- coding: utf-8 -*-
 # <pep8 compliant>
 
-
 import bpy
+
 
 class _HaydeeToolsPanel():
     bl_space_type = 'VIEW_3D'
@@ -12,7 +11,8 @@ class _HaydeeToolsPanel():
 
 
 class HaydeeToolsImportPanel(_HaydeeToolsPanel, bpy.types.Panel):
-    '''Haydee Import Toolshelf'''
+    """Haydee Import Toolshelf."""
+
     bl_idname = 'OBJECT_PT_haydee_import_tools_object'
     bl_label = 'Haydee Import Tools'
 
@@ -90,7 +90,8 @@ class HaydeeToolsImportPanel(_HaydeeToolsPanel, bpy.types.Panel):
 
 
 class HaydeeToolsExportPanel(_HaydeeToolsPanel, bpy.types.Panel):
-    '''Haydee Export Tools'''
+    """Haydee Export Tools."""
+
     bl_idname = 'OBJECT_PT_haydee_export_tools_object'
     bl_label = 'Haydee Export Tools'
 
@@ -111,8 +112,8 @@ class HaydeeToolsExportPanel(_HaydeeToolsPanel, bpy.types.Panel):
         r = c.row(align=True)
         r2c1 = r.column(align=True)
         r2c1.operator('haydee_exporter.dskel', text='DSkel')
-        #r2c2 = r.column(align=True)
-        #r2c2.operator('haydee_exporter.skeleton', text='Skel')
+        # r2c2 = r.column(align=True)
+        # r2c2.operator('haydee_exporter.skeleton', text='Skel')
 
         # col.separator()
         col = layout.column()
@@ -130,7 +131,8 @@ class HaydeeToolsExportPanel(_HaydeeToolsPanel, bpy.types.Panel):
 
 
 class HaydeeToolsSkelPanel(_HaydeeToolsPanel, bpy.types.Panel):
-    '''Haydee Adjust Armature Toolshelf'''
+    """Haydee Adjust Armature Toolshelf."""
+
     bl_idname = 'OBJECT_PT_haydee_skel_tools_object'
     bl_label = 'Haydee Skel Tools'
 
@@ -145,5 +147,3 @@ class HaydeeToolsSkelPanel(_HaydeeToolsPanel, bpy.types.Panel):
         r1c1.operator("haydee_tools.fit_to_armature", text='To Armature', icon='NONE')
         r1c2 = r.column(align=True)
         r1c2.operator('haydee_tools.fit_to_mesh', text='To Mesh')
-
-

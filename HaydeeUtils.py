@@ -1,6 +1,9 @@
+# <pep8 compliant>
+
 import bpy
 
 NAME_LIMIT = 31
+
 
 def boneRenameBlender(bone_name):
     name = bone_name
@@ -38,11 +41,12 @@ def d(number):
 #  Finds a suitable armature in the current selection or scene
 # --------------------------------------------------------------------------------
 
+
 def find_armature(operator, context):
     armature = None
     checking = "ARMATURE"
     list = context.selected_objects
-    if len(list) == 0:
+    if list:
         list = context.scene.objects
     while True:
         for ob in list:
@@ -54,10 +58,10 @@ def find_armature(operator, context):
                             break
                     if ob.type != 'ARMATURE':
                         continue
-                if armature != None and armature != ob:
+                if armature is not None and armature != ob:
                     operator.report({'ERROR'}, "Multiples armatures found, please select a single one and try again")
                 armature = ob
-        if armature != None:
+        if armature is not None:
             return armature
         if checking == "ARMATURE":
             checking = "MESH"
@@ -66,8 +70,7 @@ def find_armature(operator, context):
             return None
 
 
-
-def materials_list(a,b):
+def materials_list(a, b):
     materials = {}
     for ob in bpy.context.scene.objects:
         if ob.type == "MESH":
@@ -80,18 +83,21 @@ def materials_list(a,b):
 
 
 def fit_to_armature():
-    '''Fit selected armatures to the active armature.
+    """Fit selected armatures to the active armature.
+
     Replaces selected armature with active armature.
-    Also modifies the pose of the meshes.'''
+    Also modifies the pose of the meshes.
+    """
     active = bpy.context.active_object
     if not (active and active.type == 'ARMATURE'):
         return {'FINISHED'}
-    selected = next((armature for armature in bpy.context.selected_objects if (armature.type=='ARMATURE' and armature!=active)), None)
+    selected = next((armature for armature in bpy.context.selected_objects if (armature.type == 'ARMATURE' and armature != active)), None)
     if not (selected and selected.type == 'ARMATURE'):
         return {'FINISHED'}
     match_to_armature(selected, active)
     apply_pose(selected, active)
     bpy.data.armatures.remove(selected.data, do_unlink=True)
+    return {'FINISHED'}
 
 
 def match_to_armature(armature, target):
@@ -104,7 +110,7 @@ def match_to_armature(armature, target):
 
 def apply_pose(selected, active):
     objs = [obj for obj in bpy.data.objects if (obj.parent == selected)]
-    modifiers = [modif for obj in bpy.data.objects for modif in obj.modifiers if (modif.type=='ARMATURE' and modif.object==selected)]
+    modifiers = [modif for obj in bpy.data.objects for modif in obj.modifiers if (modif.type == 'ARMATURE' and modif.object == selected)]
     for obj in objs:
         obj.parent = active
     for modif in modifiers:
@@ -119,16 +125,17 @@ def apply_pose(selected, active):
 
 
 def fit_to_mesh():
-    '''Fit selected armatures to active'''
+    """Fit selected armatures to active."""
     active = bpy.context.active_object
     if not (active and active.type == 'ARMATURE'):
         return {'FINISHED'}
-    selected = next((armature for armature in bpy.context.selected_objects if (armature.type=='ARMATURE' and armature!=active)), None)
+    selected = next((armature for armature in bpy.context.selected_objects if (armature.type == 'ARMATURE' and armature != active)), None)
     if not (selected and selected.type == 'ARMATURE'):
         return {'FINISHED'}
     match_to_armature(active, selected)
     new_rest_pose(selected, active)
     bpy.data.armatures.remove(selected.data, do_unlink=True)
+    return {'FINISHED'}
 
 
 def new_rest_pose(selected, active):
@@ -143,12 +150,11 @@ def new_rest_pose(selected, active):
     bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
 
     objs = [obj for obj in bpy.data.objects if (obj.parent == selected)]
-    modifiers = [modif for obj in bpy.data.objects for modif in obj.modifiers if (modif.type=='ARMATURE' and modif.object==selected)]
+    modifiers = [modif for obj in bpy.data.objects for modif in obj.modifiers if (modif.type == 'ARMATURE' and modif.object == selected)]
     for obj in objs:
         obj.parent = active
     for modif in modifiers:
         modif.object = active
-
 
 
 class HaydeeToolFitArmature_Op(bpy.types.Operator):
@@ -171,4 +177,3 @@ class HaydeeToolFitMesh_Op(bpy.types.Operator):
     def execute(self, context):
         fit_to_mesh()
         return {'FINISHED'}
-

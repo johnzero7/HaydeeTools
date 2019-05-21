@@ -1,14 +1,15 @@
-# -*- coding: utf-8 -*-
 # <pep8 compliant>
 
 import bpy
 import os
 from mathutils import Vector
 
-#Nodes Layout
+COLOR_SPACE_NONE = 'Non-Color'
+
+# Nodes Layout
 NODE_FRAME = 'NodeFrame'
 
-#Nodes Shaders
+# Nodes Shaders
 BSDF_DIFFUSE_NODE = 'ShaderNodeBsdfDiffuse'
 BSDF_EMISSION_NODE = 'ShaderNodeEmission'
 BSDF_GLOSSY_NODE = 'ShaderNodeBsdfGlossy'
@@ -17,22 +18,22 @@ BSDF_TRANSPARENT_NODE = 'ShaderNodeBsdfTransparent'
 SHADER_ADD_NODE = 'ShaderNodeAddShader'
 SHADER_MIX_NODE = 'ShaderNodeMixShader'
 
-#Nodes Color
+# Nodes Color
 RGB_MIX_NODE = 'ShaderNodeMixRGB'
 INVERT_NODE = 'ShaderNodeInvert'
 
-#Nodes Input
+# Nodes Input
 TEXTURE_IMAGE_NODE = 'ShaderNodeTexImage'
 SHADER_NODE_FRESNEL = 'ShaderNodeFresnel'
 SHADER_NODE_NEW_GEOMETRY = 'ShaderNodeNewGeometry'
 
-#Nodes Outputs
+# Nodes Outputs
 OUTPUT_NODE = 'ShaderNodeOutputMaterial'
 
-#Nodes Vector
+# Nodes Vector
 NORMAL_MAP_NODE = 'ShaderNodeNormalMap'
 
-#Nodes Convert
+# Nodes Convert
 SHADER_NODE_MATH = 'ShaderNodeMath'
 SHADER_NODE_SEPARATE_RGB = 'ShaderNodeSeparateRGB'
 SHADER_NODE_COMBINE_RGB = 'ShaderNodeCombineRGB'
@@ -52,13 +53,10 @@ NODE_SOCKET_FLOAT_FACTOR = 'NodeSocketFloatFactor'
 NODE_SOCKET_SHADER = 'NodeSocketShader'
 NODE_SOCKET_VECTOR = 'NodeSocketVector'
 
-
-
-
 DEFAULT_PBR_POWER = .5
 
 
-def load_image(textureFilepath, forceNewTexture = False):
+def load_image(textureFilepath, forceNewTexture=False):
     image = None
     if textureFilepath:
         textureFilename = os.path.basename(textureFilepath)
@@ -105,15 +103,16 @@ def create_cycle_node_material(material, useAlpha, diffuseFile, normalFile, spec
 
     specularTextureNode = node_tree.nodes.new(TEXTURE_IMAGE_NODE)
     specularTextureNode.label = 'Roughness Specular Metalic'
-    specularTextureNode.color_space = 'NONE'
     specularTextureNode.image = load_image(specularFile)
+    if (specularTextureNode.image):
+        specularTextureNode.image.colorspace_settings.name = COLOR_SPACE_NONE
     specularTextureNode.location = diffuseTextureNode.location + Vector((0, -450))
 
     normalTextureRgbNode = node_tree.nodes.new(TEXTURE_IMAGE_NODE)
     normalTextureRgbNode.label = 'Haydee Normal'
-    normalTextureRgbNode.color_space = 'NONE'
     normalTextureRgbNode.image = load_image(normalFile)
     if normalTextureRgbNode.image:
+        normalTextureRgbNode.image.colorspace_settings.name = COLOR_SPACE_NONE
         normalTextureRgbNode.image.use_alpha = False
     normalTextureRgbNode.location = specularTextureNode.location + Vector((0, -300))
 
@@ -121,8 +120,8 @@ def create_cycle_node_material(material, useAlpha, diffuseFile, normalFile, spec
     normalTextureAlphaNode.label = 'Haydee Normal Alpha'
     normalTextureAlphaNode.image = load_image(normalFile, True)
     if normalTextureAlphaNode.image:
+        normalTextureAlphaNode.image.colorspace_settings.name = COLOR_SPACE_NONE
         normalTextureAlphaNode.image.use_alpha = True
-    normalTextureAlphaNode.color_space = 'NONE'
     normalTextureAlphaNode.location = specularTextureNode.location + Vector((0, -600))
 
     haydeeNormalMapNode = node_tree.nodes.new(NODE_GROUP)
@@ -161,7 +160,7 @@ def create_cycle_node_material(material, useAlpha, diffuseFile, normalFile, spec
     pbrReflectionInput = None
     pbrMetallicInput = None
     pbrShaderNode = node_tree.nodes.new(PRINCIPLED_SHADER_NODE)
-    #pbrShaderNode.location = roughnessPowerNode.location + Vector((200, 100))
+    # pbrShaderNode.location = roughnessPowerNode.location + Vector((200, 100))
     pbrShaderNode.location = diffuseTextureNode.location + Vector((col_width * 4, -100))
     pbrColorInput = 'Base Color'
     pbrRoughnessInput = 'Roughness'
@@ -181,7 +180,7 @@ def create_cycle_node_material(material, useAlpha, diffuseFile, normalFile, spec
         transparencyNode = node_tree.nodes.new(BSDF_TRANSPARENT_NODE)
         transparencyNode.location = alphaMixNode.location + Vector((-250, -100))
 
-    #Links Input
+    # Links Input
     links = node_tree.links
     if emissionFile and os.path.exists(emissionFile):
         links.new(emissionTextureNode.outputs['Color'], emissionNode.inputs['Color'])
@@ -261,29 +260,29 @@ def haydee_normal_map():
     BCalc.name = 'B Calc'
     BCalc.label = 'B Calc'
     mathPowerRNode = node_tree.nodes.new(SHADER_NODE_MATH)
-    mathPowerRNode.parent =  BCalc
+    mathPowerRNode.parent = BCalc
     mathPowerRNode.operation = 'POWER'
     mathPowerRNode.inputs[1].default_value = 2
     mathPowerRNode.location = mathSubstractRNode.location + Vector((200, 0))
     mathPowerGNode = node_tree.nodes.new(SHADER_NODE_MATH)
-    mathPowerGNode.parent =  BCalc
+    mathPowerGNode.parent = BCalc
     mathPowerGNode.operation = 'POWER'
     mathPowerGNode.inputs[1].default_value = 2
     mathPowerGNode.location = mathSubstractGNode.location + Vector((200, 0))
 
     mathAddNode = node_tree.nodes.new(SHADER_NODE_MATH)
-    mathAddNode.parent =  BCalc
+    mathAddNode.parent = BCalc
     mathAddNode.operation = 'ADD'
     mathAddNode.location = mathPowerGNode.location + Vector((200, 60))
 
     mathSubtractNode = node_tree.nodes.new(SHADER_NODE_MATH)
-    mathSubtractNode.parent =  BCalc
+    mathSubtractNode.parent = BCalc
     mathSubtractNode.operation = 'SUBTRACT'
     mathSubtractNode.inputs[0].default_value = 1
     mathSubtractNode.location = mathAddNode.location + Vector((200, 0))
 
     mathRootNode = node_tree.nodes.new(SHADER_NODE_MATH)
-    mathRootNode.parent =  BCalc
+    mathRootNode.parent = BCalc
     mathRootNode.operation = 'POWER'
     mathRootNode.inputs[1].default_value = .5
     mathRootNode.location = mathSubtractNode.location + Vector((200, 0))
@@ -293,18 +292,18 @@ def haydee_normal_map():
 
     # Input/Output
     group_inputs = node_tree.nodes.new(NODE_GROUP_INPUT)
-    group_inputs.location = separateRgbNode.location + Vector ((-200, -100))
+    group_inputs.location = separateRgbNode.location + Vector((-200, -100))
     group_outputs = node_tree.nodes.new(NODE_GROUP_OUTPUT)
-    group_outputs.location = combineRgbNode.location + Vector ((200, 0))
+    group_outputs.location = combineRgbNode.location + Vector((200, 0))
 
-    #group_inputs.inputs.new(NODE_SOCKET_SHADER,'Shader')
-    input_color = node_tree.inputs.new(NODE_SOCKET_COLOR,'Color')
+    # group_inputs.inputs.new(NODE_SOCKET_SHADER,'Shader')
+    input_color = node_tree.inputs.new(NODE_SOCKET_COLOR, 'Color')
     input_color.default_value = (.5, .5, .5, 1)
-    input_alpha = node_tree.inputs.new(NODE_SOCKET_COLOR,'Alpha')
+    input_alpha = node_tree.inputs.new(NODE_SOCKET_COLOR, 'Alpha')
     input_alpha.default_value = (.5, .5, .5, 1)
-    output_value = node_tree.outputs.new(NODE_SOCKET_COLOR,'Normal')
+    output_value = node_tree.outputs.new(NODE_SOCKET_COLOR, 'Normal')
 
-    #Links Input
+    # Links Input
     links = node_tree.links
     links.new(group_inputs.outputs['Color'], separateRgbNode.inputs['Image'])
     links.new(group_inputs.outputs['Alpha'], invertGNode.inputs['Color'])
@@ -328,5 +327,3 @@ def haydee_normal_map():
     links.new(combineRgbNode.outputs['Image'], group_outputs.inputs['Normal'])
 
     return node_tree
-
-

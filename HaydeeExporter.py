@@ -1,9 +1,7 @@
+# <pep8 compliant>
 
 import bpy
 import os
-import struct
-import math
-import io
 import re
 from .HaydeeUtils import d, find_armature
 from .HaydeeUtils import boneRenameHaydee, materials_list, stripName, NAME_LIMIT
@@ -29,7 +27,7 @@ from math import pi
 
 def write_dskel(operator, context, filepath):
     armature = find_armature(operator, context)
-    if armature == None:
+    if armature is None:
         return {'FINISHED'}
 
     bones = armature.data.bones
@@ -65,7 +63,7 @@ def write_dskel(operator, context, filepath):
         f.write("\t}\n")
 
     f.write("}\n")
-    f.close();
+    f.close()
     return {'FINISHED'}
 
 
@@ -74,7 +72,7 @@ class ExportHaydeeDSkel(Operator, ExportHelper):
     bl_label = "Export Haydee DSkel (.dskel)"
     bl_options = {'REGISTER'}
     filename_ext = ".dskel"
-    filter_glob : StringProperty(
+    filter_glob: StringProperty(
             default="*.dskel",
             options={'HIDDEN'},
             maxlen=255,  # Max internal buffer length, longer would be clamped.
@@ -94,7 +92,7 @@ class ExportHaydeeDSkel(Operator, ExportHelper):
 
 def write_dpose(operator, context, filepath):
     armature = find_armature(operator, context)
-    if armature == None:
+    if armature is None:
         return {'FINISHED'}
 
     bones = armature.pose.bones
@@ -114,12 +112,12 @@ def write_dpose(operator, context, filepath):
             q = Quaternion([q.z, -q.y, q.x, -q.w])
 
         f.write("\ttransform %s %s %s %s %s %s %s %s;\n" % (
-            boneRenameHaydee(bone.name), \
+            boneRenameHaydee(bone.name),
             d(-head.x), d(head.y), d(-head.z),
             d(q.x), d(-q.w), d(q.y), d(q.z)))
 
     f.write("\t}\n")
-    f.close();
+    f.close()
     return {'FINISHED'}
 
 
@@ -128,7 +126,7 @@ class ExportHaydeeDPose(Operator, ExportHelper):
     bl_label = "Export Haydee DPose (.dpose)"
     bl_options = {'REGISTER'}
     filename_ext = ".dpose"
-    filter_glob : StringProperty(
+    filter_glob: StringProperty(
             default="*.dpose",
             options={'HIDDEN'},
             maxlen=255,  # Max internal buffer length, longer would be clamped.
@@ -148,7 +146,7 @@ class ExportHaydeeDPose(Operator, ExportHelper):
 
 def write_dmot(operator, context, filepath):
     armature = find_armature(operator, context)
-    if armature == None:
+    if armature is None:
         return {'FINISHED'}
 
     bones = armature.pose.bones
@@ -187,7 +185,7 @@ def write_dmot(operator, context, filepath):
 
     f = open(filepath, 'w', encoding='utf-8')
     f.write("HD_DATA_TXT 300\n\n")
-    f.write("motion\n{\n");
+    f.write("motion\n{\n")
     f.write("\tnumTracks %d;\n" % len(bones))
     f.write("\tnumFrames %d;\n" % keyframeCount)
     f.write("\tframeRate %g;\n" % context.scene.render.fps)
@@ -197,7 +195,7 @@ def write_dmot(operator, context, filepath):
         f.write("".join(lines[name]))
         f.write("\t}\n")
     f.write("}\n")
-    f.close();
+    f.close()
     return {'FINISHED'}
 
 
@@ -206,7 +204,7 @@ class ExportHaydeeDMotion(Operator, ExportHelper):
     bl_label = "Export Haydee DMotion (.dmot)"
     bl_options = {'REGISTER'}
     filename_ext = ".dmot"
-    filter_glob : StringProperty(
+    filter_glob: StringProperty(
             default="*.dmot",
             options={'HIDDEN'},
             maxlen=255,  # Max internal buffer length, longer would be clamped.
@@ -224,9 +222,9 @@ class ExportHaydeeDMotion(Operator, ExportHelper):
 #  .dmesh exporter
 # --------------------------------------------------------------------------------
 
-def write_dmesh(operator, context, filepath, export_skeleton, \
-        apply_modifiers, selected_only, separate_files, \
-        ignore_hidden, SELECTED_MATERIAL):
+def write_dmesh(operator, context, filepath, export_skeleton,
+                apply_modifiers, selected_only, separate_files,
+                ignore_hidden, SELECTED_MATERIAL):
     print("Exporting mesh, material: %s" % SELECTED_MATERIAL)
 
     mesh_count = 0
@@ -253,21 +251,24 @@ def write_dmesh(operator, context, filepath, export_skeleton, \
         uvs_dict) = reset_variables()
     group_name = None
 
-    for ob in sorted([x for x in list if x.type=='MESH'], key=lambda ob: ob.name):
+    for ob in sorted([x for x in list if x.type == 'MESH'], key=lambda ob: ob.name):
         if ob.type == "MESH":
-            #TODO ignore hidden objects
+            # TODO ignore hidden objects
             if ignore_hidden and ob.hide_viewport:
                 continue
 
             if separate_files:
                 (vertex_output, uvs_output, groups_output, groups_count,
-                joints_output, weights_output, weights_count, group_count,
-                base_vertex_index, base_uv_index, armature, unique_uvs_pos,
-                uvs_dict) = reset_variables()
+                 joints_output, weights_output, weights_count, group_count,
+                 base_vertex_index, base_uv_index, armature, unique_uvs_pos,
+                 uvs_dict) = reset_variables()
 
             settings = 'PREVIEW'
-            #//XXX TO MESH
-            mesh = ob.to_mesh(context.depsgraph, apply_modifiers)
+            # XXX TO MESH
+            # mesh = ob.to_mesh(context.depsgraph, apply_modifiers)
+            depsgraph = context.evaluated_depsgraph_get()
+            ob_for_convert = ob.evaluated_get(depsgraph) if apply_modifiers else ob.original
+            mesh = ob_for_convert.to_mesh()
             mat = ob.matrix_world
             vertices = mesh.vertices
             materials = mesh.materials
@@ -285,7 +286,7 @@ def write_dmesh(operator, context, filepath, export_skeleton, \
             if SELECTED_MATERIAL == '__ALL__':
                 for n in range(len(vertices)):
                     vertex_map[n] = base_vertex_index+n
-                if uvs_data != None:
+                if uvs_data is not None:
                     for n, uv in enumerate(uvs_data):
                         uv_pos = uv.uv
                         if uv_pos in unique_uvs_pos:
@@ -307,7 +308,7 @@ def write_dmesh(operator, context, filepath, export_skeleton, \
                     continue
                 for polygon in mesh.polygons:
                     if polygon.material_index == material_index:
-                        if uvs_data != None:
+                        if uvs_data is not None:
                             for uvIdx in polygon.loop_indices:
                                 uv_pos = uvs_data[uvIdx].uv
                                 if uv_pos in unique_uvs_pos:
@@ -326,12 +327,12 @@ def write_dmesh(operator, context, filepath, export_skeleton, \
                     print("Ignoring mesh %s since no vertices found with material %s" % (ob.name, SELECTED_MATERIAL))
                     continue
 
-            if uvs_data == None:
+            if uvs_data is None:
                 operator.report({'ERROR'}, "Mesh " + ob.name + " is missing UV information")
                 continue
             # Export vertices
             vertex_count = base_vertex_index - first_vertex_index
-            print ("Exporting %d vertices" % vertex_count)
+            print("Exporting %d vertices" % vertex_count)
             vertex_indexes = [0] * vertex_count
             for key, value in vertex_map.items():
                 vertex_indexes[value - first_vertex_index] = key
@@ -342,7 +343,7 @@ def write_dmesh(operator, context, filepath, export_skeleton, \
 
             # Export UV map
             uv_count = base_uv_index - first_uv_index
-            print ("Exporting %d uvs" % uv_count)
+            print("Exporting %d uvs" % uv_count)
             uv_indexes = [-1] * uv_count
             if len(mesh.uv_layers) >= 1:
                 for uv in new_mesh_uvs:
@@ -375,7 +376,7 @@ def write_dmesh(operator, context, filepath, export_skeleton, \
                     group_name = ob.name + '_' + mat.name
                 else:
                     group_name = ob.name
-                regex=re.compile('^[0-9]')
+                regex = re.compile('^[0-9]')
                 if regex.match(group_name):
                     group_name = 'x' + group_name
                 group_name = stripName(group_name)
@@ -395,14 +396,14 @@ def write_dmesh(operator, context, filepath, export_skeleton, \
                         groups_count[group_name] += 1
                         group_output.append("\t\t\tface\n\t\t\t{\n")
                         group_output.append("\t\t\t\tcount %d;\n" % len(polygon.vertices))
-                        group_output.append("\t\t\t\tverts ");
+                        group_output.append("\t\t\t\tverts ")
                         for v in tuple(polygon.vertices)[::-1]:
-                            group_output.append(" %d" % vertex_map[v]);
+                            group_output.append(" %d" % vertex_map[v])
                         group_output.append(";\n")
-                        if uvs_data != None:
-                            group_output.append("\t\t\t\tuvs ");
+                        if uvs_data is not None:
+                            group_output.append("\t\t\t\tuvs ")
                             for v in tuple(polygon.loop_indices)[::-1]:
-                                group_output.append(" %d" % uvs_dict[v + first_uv_index]);
+                                group_output.append(" %d" % uvs_dict[v + first_uv_index])
                             group_output.append(";\n")
                         if smooth_groups_tot:
                             group_output.append("\t\t\t\tsmoothGroup %d;\n\t\t\t}\n" % smooth_groups[polygon.index])
@@ -427,7 +428,7 @@ def write_dmesh(operator, context, filepath, export_skeleton, \
                         group_name = ob.name + '_' + mat.name
                     else:
                         group_name = ob.name
-                    regex=re.compile('^[0-9]')
+                    regex = re.compile('^[0-9]')
                     if regex.match(group_name):
                         group_name = 'x' + group_name
                     group_name = stripName(group_name)
@@ -449,14 +450,14 @@ def write_dmesh(operator, context, filepath, export_skeleton, \
                             groups_count[group_name] += 1
                             group_output.append("\t\t\tface\n\t\t\t{\n")
                             group_output.append("\t\t\t\tcount %d;\n" % len(polygon.vertices))
-                            group_output.append("\t\t\t\tverts ");
+                            group_output.append("\t\t\t\tverts ")
                             for v in tuple(polygon.vertices)[::-1]:
-                                group_output.append(" %d" % vertex_map[v]);
+                                group_output.append(" %d" % vertex_map[v])
                             group_output.append(";\n")
-                            if uvs_data != None:
-                                group_output.append("\t\t\t\tuvs ");
+                            if uvs_data is not None:
+                                group_output.append("\t\t\t\tuvs ")
                                 for v in tuple(polygon.loop_indices)[::-1]:
-                                    group_output.append(" %d" % uvs_dict[v + first_uv_index]);
+                                    group_output.append(" %d" % uvs_dict[v + first_uv_index])
                                 group_output.append(";\n")
                             if smooth_groups_tot:
                                 group_output.append("\t\t\t\tsmoothGroup %d;\n\t\t\t}\n" % smooth_groups[polygon.index])
@@ -471,7 +472,7 @@ def write_dmesh(operator, context, filepath, export_skeleton, \
 
                         print("Exporting armature: " + ob.find_armature().name)
 
-                        if armature == None:
+                        if armature is None:
                             armature = ob.find_armature()
                             bones = armature.data.bones
                             mat = armature.matrix_world
@@ -489,7 +490,7 @@ def write_dmesh(operator, context, filepath, export_skeleton, \
 
                                 bone_name = boneRenameHaydee(bone.name)
 
-                                #print("Bone %s quaternion: %s" % (bone.name, bone.matrix.to_quaternion() @ r))
+                                # print("Bone %s quaternion: %s" % (bone.name, bone.matrix.to_quaternion() @ r))
                                 joints_output.append("\t\tjoint %s\n\t\t{\n" % bone_name)
                                 if bone.parent:
                                     parent_name = boneRenameHaydee(bone.parent.name)
@@ -530,10 +531,10 @@ def write_dmesh(operator, context, filepath, export_skeleton, \
                                         vertex_weights[i].append((vertex_map[v.index], bone, g.weight))
                         for i in sorted(vertex_weights.keys()):
                             weight_list = vertex_weights[i]
-                            #sort bone names first?
-                            #weight_list = sorted(weight_list, key=lambda bw: bw[1], reverse=True)
+                            # sort bone names first?
+                            # weight_list = sorted(weight_list, key=lambda bw: bw[1], reverse=True)
                             weight_list = sorted(weight_list, key=lambda bw: bw[2], reverse=True)
-                            #if len(weight_list) > 4:
+                            # if len(weight_list) > 4:
                             #    weight_list = weight_list[0:3]
                             sum = 0
                             for w in weight_list:
@@ -542,6 +543,8 @@ def write_dmesh(operator, context, filepath, export_skeleton, \
                                 normalized_weight = w[2] / sum
                                 weights_output.append("\t\tweight %d %d %s;\n" % (w[0], w[1], d(normalized_weight)))
                                 weights_count += 1
+            # clean up
+            ob_for_convert.to_mesh_clear()
 
         if separate_files:
             to_file(separate_files, filepath, group_name, base_vertex_index, vertex_output,
@@ -576,13 +579,13 @@ def reset_variables():
     uvs_dict = []
 
     return (vertex_output, uvs_output, groups_output, groups_count,
-        joints_output, weights_output, weights_count, group_count,
-        base_vertex_index, base_uv_index, armature, unique_uvs_pos, uvs_dict)
+            joints_output, weights_output, weights_count, group_count,
+            base_vertex_index, base_uv_index, armature, unique_uvs_pos, uvs_dict)
 
 
 def to_file(separate_files, filepath, group_name, base_vertex_index,
-        vertex_output, unique_uvs_pos, uvs_output, groups_output,
-        groups_count, joints_output, weights_count, weights_output):
+            vertex_output, unique_uvs_pos, uvs_output, groups_output,
+            groups_count, joints_output, weights_count, weights_output):
 
     if separate_files:
         folder_path, basename = (os.path.split(filepath))
@@ -618,7 +621,7 @@ class ExportHaydeeDMesh(Operator, ExportHelper):
     bl_label = "Export Haydee dmesh"
     bl_options = {'REGISTER'}
     filename_ext = ".dmesh"
-    filter_glob : StringProperty(
+    filter_glob: StringProperty(
             default="*.dmesh",
             options={'HIDDEN'},
             maxlen=255,  # Max internal buffer length, longer would be clamped.
@@ -626,35 +629,35 @@ class ExportHaydeeDMesh(Operator, ExportHelper):
 
     # List of operator properties, the attributes will be assigned
     # to the class instance from the operator settings before calling.
-    selected_only : BoolProperty(
+    selected_only: BoolProperty(
             name="Selected only",
             description="Export only selected objects (if nothing is selected, full scene will be exported regardless of this setting)",
             default=True,
             )
-    separate_files : BoolProperty(
+    separate_files: BoolProperty(
             name="Export to Separate Files",
             description="Export each object to a separate file",
             default=False,
             )
-    ignore_hidden : BoolProperty(
+    ignore_hidden: BoolProperty(
             name="Ignore hidden",
             description="Ignore hidden objects",
             default=True,
             )
-    apply_modifiers : BoolProperty(
+    apply_modifiers: BoolProperty(
             name="Apply modifiers",
             description="Apply modifiers before exporting",
             default=True,
             )
-    export_skeleton : BoolProperty(
+    export_skeleton: BoolProperty(
             name="Export skeleton",
             description="Export skeleton and vertex weights",
             default=True,
             )
-    material : EnumProperty(
+    material: EnumProperty(
             name="Material",
             description="Material to export",
-            items = materials_list
+            items=materials_list
             )
 
     def invoke(self, context, event):
@@ -663,8 +666,8 @@ class ExportHaydeeDMesh(Operator, ExportHelper):
 
     def execute(self, context):
         return write_dmesh(self, context, self.filepath, self.export_skeleton,
-                self.apply_modifiers, self.selected_only, self.separate_files,
-                self.ignore_hidden, self.material)
+                           self.apply_modifiers, self.selected_only, self.separate_files,
+                           self.ignore_hidden, self.material)
 
 
 # --------------------------------------------------------------------------------
@@ -703,4 +706,3 @@ if __name__ == "__main__":
 
     # test call
     # bpy.ops.haydee_exporter.motion('INVOKE_DEFAULT')
-

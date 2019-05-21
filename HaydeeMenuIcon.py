@@ -1,9 +1,12 @@
+# <pep8 compliant>
+
 import os
 
 # --------------------------------------------------------------------------------
 #  Custom Icons
 # --------------------------------------------------------------------------------
 custom_icons = {}
+
 
 def registerCustomIcon():
     import bpy.utils.previews
@@ -19,5 +22,3 @@ def unregisterCustomIcon():
     for pcoll in custom_icons.values():
         bpy.utils.previews.remove(pcoll)
     custom_icons.clear()
-
-

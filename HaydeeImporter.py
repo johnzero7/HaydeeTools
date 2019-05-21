@@ -1,8 +1,8 @@
+# <pep8 compliant>
 
 import bpy
 import os
 import struct
-import math
 import io
 import codecs
 from .HaydeeUtils import d, find_armature
@@ -25,16 +25,16 @@ from math import pi
 
 ARMATURE_NAME = 'Skeleton'
 
-#Swap matrix rows
-SWAP_ROW_SKEL = Matrix((( 0, 0, 1, 0),
-                        ( 1, 0, 0, 0),
-                        ( 0, 1, 0, 0),
-                        ( 0, 0, 0, 1)))
-#Swap matrix cols
-SWAP_COL_SKEL = Matrix((( 1, 0, 0, 0),
-                        ( 0, 0,-1, 0),
-                        ( 0,-1, 0, 0),
-                        ( 0, 0, 0, 1)))
+# Swap matrix rows
+SWAP_ROW_SKEL = Matrix(((0, 0, 1, 0),
+                        (1, 0, 0, 0),
+                        (0, 1, 0, 0),
+                        (0, 0, 0, 1)))
+# Swap matrix cols
+SWAP_COL_SKEL = Matrix(((1,  0,  0, 0),
+                        (0,  0, -1, 0),
+                        (0, -1,  0, 0),
+                        (0,  0,  0, 1)))
 
 
 # Vector from Haydee format to Blender
@@ -43,7 +43,7 @@ def vectorSwapSkel(vec):
 
 
 def createCollection(name="Haydee Model"):
-    #Create a collection with specific name
+    # Create a collection with specific name
     collection = bpy.data.collections.new(name)
     bpy.context.scene.collection.children.link(collection)
     return collection
@@ -82,20 +82,21 @@ def recurBonesOrigin(progress, parentBone, jointNames, mats):
         if childBone:
             idx = jointNames.index(childBone.name)
             mat = mats[idx]
-            #INV row
-            x1 = Matrix((( 0, 0,-1, 0),
-                         ( 1, 0, 0, 0),
-                         ( 0, 1, 0, 0),
-                         ( 0, 0, 0, 1)))
-            #INV col
-            x2 = Matrix((( 0, 1, 0, 0),
-                         ( 0, 0, 1, 0),
+            # INV row
+            x1 = Matrix(((0, 0, -1, 0),
+                         (1, 0,  0, 0),
+                         (0, 1,  0, 0),
+                         (0, 0,  0, 1)))
+            # INV col
+            x2 = Matrix(((0,  1, 0, 0),
+                         (0,  0, 1, 0),
                          (-1, 0, 0, 0),
-                         ( 0, 0, 0, 1)))
+                         (0,  0, 0, 1)))
 
             childBone.matrix = parentBone.matrix @ (x1 @ mat @ x2)
             recurBonesOrigin(progress, childBone, jointNames, mats)
             progress.step()
+
 
 def read_skel(operator, context, filepath):
     print('skel:', filepath)
@@ -175,10 +176,10 @@ def read_skel(operator, context, filepath):
                               (f3, f7, f11, f15),
                               (f4, f8, f12, f16)))
 
-
-                joint_data[index]={'parent':parent,
-                        'twistX':twistX, 'twistY':twistY,
-                        'swingX':swingX, 'swingY':swingY,
+                joint_data[index] = {
+                        'parent': parent,
+                        'twistX': twistX, 'twistY': twistY,
+                        'swingX': swingX, 'swingY': swingY,
                         'matrix': mat}
 
             for n in range(slots_count):
@@ -202,9 +203,9 @@ def read_skel(operator, context, filepath):
                 offset = headerSize + (BONE_SIZE * boneCount) + (JOINT_SIZE * joints_count) + (SLOTS_SIZE * slots_count) + (FIXES_SIZE * n)
                 (type, flags, fix1, fix2, index) = \
                     struct.unpack('5I', data[offset:offset + FIXES_SIZE])
-                fix_data[index] = ({'type':type, 'flags':flags, 'fix1':fix1, 'fix2':fix2})
+                fix_data[index] = ({'type': type, 'flags': flags, 'fix1': fix1, 'fix2': fix2})
 
-            #create armature
+            # create armature
             if (bpy.context.mode != 'OBJECT'):
                 bpy.ops.object.mode_set(mode='OBJECT')
             bpy.ops.object.select_all(action='DESELECT')
@@ -237,7 +238,7 @@ def read_skel(operator, context, filepath):
                 progress.leave_substeps("create bones end")
 
                 # set all bone parents
-                progress.enter_substeps(boneCount,"parenting bones")
+                progress.enter_substeps(boneCount, "parenting bones")
                 for idx, jointParent in enumerate(jointParents):
                     if (jointParent >= 0):
                         editBone = armature_da.edit_bones[idx]
@@ -245,21 +246,21 @@ def read_skel(operator, context, filepath):
                     progress.step()
                 progress.leave_substeps("parenting bones end")
 
-                #origins of each bone is relative to its parent
-                #recalc all origins
-                progress.enter_substeps(boneCount,"aligning bones")
+                # origins of each bone is relative to its parent
+                # recalc all origins
+                progress.enter_substeps(boneCount, "aligning bones")
                 rootBones = [rootBone for rootBone in armature_da.edit_bones if rootBone.parent is None]
 
-                #swap rows root bones
-                swap_rows = Matrix(((-1, 0, 0, 0),
-                                    ( 0, 0,-1, 0),
-                                    ( 0, 1, 0, 0),
-                                    ( 0, 0, 0, 1)))
-                #swap cols root bones
-                swap_cols = Matrix((( 0, 1, 0, 0),
-                                    ( 0, 0, 1, 0),
-                                    ( 1, 0, 0, 0),
-                                    ( 0, 0, 0, 1)))
+                # swap rows root bones
+                swap_rows = Matrix(((-1, 0,  0, 0),
+                                    (0,  0, -1, 0),
+                                    (0,  1,  0, 0),
+                                    (0,  0,  0, 1)))
+                # swap cols root bones
+                swap_cols = Matrix(((0, 1, 0, 0),
+                                    (0, 0, 1, 0),
+                                    (1, 0, 0, 0),
+                                    (0, 0, 0, 1)))
 
                 for rootBone in rootBones:
                     idx = jointNames.index(rootBone.name)
@@ -287,7 +288,7 @@ def read_skel(operator, context, filepath):
 
             for idx, bone_name in enumerate(jointNames):
 
-                #import JOINT information
+                # import JOINT information
                 joint = joint_data.get(idx)
                 if joint:
                     parent = joint['parent']
@@ -300,10 +301,7 @@ def read_skel(operator, context, filepath):
                     constraint = pose_bone.constraints.new('LIMIT_ROTATION')
                     constraint.use_limit_x = True
 
-
-
-
-                #import FIX information
+                # import FIX information
                 fix = fix_data.get(idx)
                 if fix:
                     constraint = None
@@ -320,25 +318,25 @@ def read_skel(operator, context, filepath):
                     pose_bone.bone.layers[1] = True
                     pose_bone.bone.layers[0] = False
 
-                    if (type == 1): # TARGET
-                        groupName='TARGET'
+                    if (type == 1):  # TARGET
+                        groupName = 'TARGET'
                         boneGroup = armature_ob.pose.bone_groups.get(groupName)
                         if not boneGroup:
                             boneGroup = armature_ob.pose.bone_groups.new(groupName)
                             boneGroup.color_set = 'THEME15'
                         pose_bone.bone_group = boneGroup
-                        XY = bool(flags & 0b0001) # fix order YZ
-                        XY = bool(flags & 0b0010) # fix order ZY
+                        XY = bool(flags & 0b0001)  # fix order YZ
+                        XY = bool(flags & 0b0010)  # fix order ZY
                         constraint = pose_bone.constraints.new('DAMPED_TRACK')
                         constraint.name = 'Target'
                         constraint.target = armature_ob
                         constraint.subtarget = target_name
 
-                    if (type == 2 and 0==1): # SMOOTH
-                        NEGY = bool(flags & 0b0001) # fix order NEGY
-                        NEGZ = bool(flags & 0b0010) # fix order NEGZ
-                        POSY = bool(flags & 0b0011) # fix order POSY
-                        POSZ = bool(flags & 0b0100) # fix order POSZ
+                    if (type == 2 and 0 == 1):  # SMOOTH
+                        NEGY = bool(flags & 0b0001)  # fix order NEGY
+                        NEGZ = bool(flags & 0b0010)  # fix order NEGZ
+                        POSY = bool(flags & 0b0011)  # fix order POSY
+                        POSZ = bool(flags & 0b0100)  # fix order POSZ
                         pose_bone.bone.use_inherit_scale = False
                         pose_bone.bone.use_inherit_rotation = False
 
@@ -363,15 +361,15 @@ def read_skel(operator, context, filepath):
                         matrix = constraint_child.target.data.bones[constraint_child.subtarget].matrix_local.inverted()
                         constraint_child.inverse_matrix = matrix
                         constraint_child.influence = .5
-                    if (type == 2): # SMOOTH
-                        groupName='SMOOTH'
+                    if (type == 2):  # SMOOTH
+                        groupName = 'SMOOTH'
                         boneGroup = armature_ob.pose.bone_groups.get(groupName)
                         if not boneGroup:
                             boneGroup = armature_ob.pose.bone_groups.new(groupName)
                             boneGroup.color_set = 'THEME14'
                         pose_bone.bone_group = boneGroup
-                        driver = armature_ob.driver_add('pose.bones["'+bone_name+'"].rotation_quaternion')
-                        expression = '(mld.to_quaternion().inverted() @ mls.to_quaternion() @ mbs.to_quaternion() @ mls.to_quaternion().inverted() @ mld.to_quaternion()).slerp(((1,0,0,0)),.5)'
+                        driver = armature_ob.driver_add(f'pose.bones["{bone_name}"].rotation_quaternion')
+                        expression = '(mld.to_quaternion().inverted() @ mls.to_quaternion() @ mbs.to_quaternion() @ mls.to_quaternion().inverted() @ mld.to_quaternion()).slerp(((1, 0, 0, 0)), .5)'
                         build_driver(driver, expression, 0, bone_name, target_name)
                         build_driver(driver, expression, 1, bone_name, target_name)
                         build_driver(driver, expression, 2, bone_name, target_name)
@@ -379,7 +377,7 @@ def read_skel(operator, context, filepath):
 
             armature_ob.select_set(state=True)
 
-    #wm.progress_end()
+    # wm.progress_end()
     return {'FINISHED'}
 
 
@@ -412,7 +410,7 @@ class ImportHaydeeSkel(Operator, ImportHelper):
     bl_label = "Import Haydee Skel (.skel)"
     bl_options = {'REGISTER', 'UNDO'}
     filename_ext = ".skel"
-    filter_glob : StringProperty(
+    filter_glob: StringProperty(
             default="*.skel",
             options={'HIDDEN'},
             maxlen=255,  # Max internal buffer length, longer would be clamped.
@@ -420,7 +418,6 @@ class ImportHaydeeSkel(Operator, ImportHelper):
 
     def execute(self, context):
         return read_skel(self, context, self.filepath)
-
 
 
 # --------------------------------------------------------------------------------
@@ -470,8 +467,7 @@ def read_dskel(operator, context, filepath):
             jointHeight = []
             jointLength = []
 
-
-            #steps = len(data.getvalue().splitlines()) - 1
+            # steps = len(data.getvalue().splitlines()) - 1
             progress.enter_substeps(1, "Parse Data")
             # Read model data
             for lineData in data:
@@ -488,7 +484,7 @@ def read_dskel(operator, context, filepath):
                     level -= 1
                     contextName = None
 
-                #Joints
+                # Joints
                 if (line_start == 'skeleton' and level == 0):
                     boneCount = line_split[1]
                 if (line_start == 'bone' and level == 1):
@@ -549,7 +545,7 @@ def read_dskel(operator, context, filepath):
                 progress.leave_substeps("create bones end")
 
                 # set all bone parents
-                progress.enter_substeps(boneCount,"parenting bones")
+                progress.enter_substeps(boneCount, "parenting bones")
                 for idx, jointParent in enumerate(jointParents):
                     if (jointParent):
                         editBone = armature_da.edit_bones[idx]
@@ -557,9 +553,9 @@ def read_dskel(operator, context, filepath):
                     progress.step()
                 progress.leave_substeps("parenting bones end")
 
-                #origins of each bone is relative to its parent
-                #recalc all origins
-                progress.enter_substeps(boneCount,"aligning bones")
+                # origins of each bone is relative to its parent
+                # recalc all origins
+                progress.enter_substeps(boneCount, "aligning bones")
                 rootBones = [rootBone for rootBone in armature_da.edit_bones if rootBone.parent is None]
                 for rootBone in rootBones:
                     idx = jointNames.index(rootBone.name)
@@ -596,7 +592,7 @@ class ImportHaydeeDSkel(Operator, ImportHelper):
     bl_label = "Import Haydee DSkel (.dskel)"
     bl_options = {'REGISTER', 'UNDO'}
     filename_ext = ".dskel"
-    filter_glob : StringProperty(
+    filter_glob: StringProperty(
             default="*.dskel",
             options={'HIDDEN'},
             maxlen=255,  # Max internal buffer length, longer would be clamped.
@@ -617,16 +613,16 @@ def recurBonesOriginMesh(progress, parentBone, jointNames, jointAxis, jointOrigi
             mat = Quaternion(jointAxis[idx]).to_matrix().to_4x4()
             pos = Vector(jointOrigin[idx])
 
-            #INV row
-            x1=Matrix((( -1,  0, 0, 0),
-                       (  0,  0, 1, 0),
-                       (  0, -1, 0, 0),
-                       (  0,  0, 0, 1)))
-            #INV col
-            x2=Matrix((( 1, 0, 0, 0),
-                       ( 0, 0, 1, 0),
-                       ( 0, 1, 0, 0),
-                       ( 0, 0, 0, 1)))
+            # INV row
+            x1 = Matrix(((-1, 0, 0, 0),
+                        (0,  0, 1, 0),
+                        (0, -1, 0, 0),
+                        (0,  0, 0, 1)))
+            # INV col
+            x2 = Matrix(((1, 0, 0, 0),
+                        (0, 0, 1, 0),
+                        (0, 1, 0, 0),
+                        (0, 0, 0, 1)))
 
             mat = parentBone.matrix @ (x1 @ mat @ x2)
             pos = parentBone.matrix @ Vector((-pos.z, pos.x, pos.y))
@@ -640,16 +636,20 @@ def recurBonesOriginMesh(progress, parentBone, jointNames, jointAxis, jointOrigi
 def coordTransform(coord):
     return [-coord[0], -coord[2], coord[1]]
 
+
 def readVec(line_split, vec_data, vec_len, func):
     vec = [func(v) for v in line_split[1:]]
     vec_data.append(tuple(vec[:vec_len]))
+
 
 def readWeights(line_split, vert_data):
     vec = tuple((int(line_split[1]), int(line_split[2]), float(line_split[3])))
     vert_data.append(vec)
 
+
 def stripLine(line):
     return line.strip().strip(';')
+
 
 def read_dmesh(operator, context, filepath):
     print('dmesh:', filepath)
@@ -710,7 +710,7 @@ def read_dmesh(operator, context, filepath):
             contextName = None
             meshName = None
 
-            #steps = len(data.getvalue().splitlines()) - 1
+            # steps = len(data.getvalue().splitlines()) - 1
             progress.enter_substeps(1, "Parse Data")
             # Read model data
             for lineData in data:
@@ -727,18 +727,18 @@ def read_dmesh(operator, context, filepath):
                     level -= 1
                     contextName = None
 
-                if (line_start == 'verts','face','joint'):
+                if (line_start == 'verts', 'face', 'joint'):
                     contextName = line_start
 
-                #All verts
+                # All verts
                 if (line_start == 'vert'):
                     readVec(line_split, vert_data, 3, float)
 
-                #All UVs
+                # All UVs
                 if (line_start == 'uv'):
                     readVec(line_split, uv_data, 2, float)
 
-                #Faces
+                # Faces
                 if (line_start == 'group' and level >= 2):
                     meshName = line_split[1]
                     meshFaces[meshName] = []
@@ -754,22 +754,22 @@ def read_dmesh(operator, context, filepath):
                 if (line_start == 'smoothGroup' and level >= 3):
                     meshSmoothGroups[meshName].append(int(line_split[1]))
 
-                #Joints
+                # Joints
                 if (line_start == 'joint' and level >= 2):
                     jointName = line_split[1]
                     jointNames.append(jointName)
                     jointParents.append(None)
                 if (line_start == 'parent' and level >= 3):
-                    jointParents[len(jointParents)-1] = line.split(' ',1)[1]
+                    jointParents[len(jointParents)-1] = line.split(' ', 1)[1]
                 if (line_start == 'origin' and level >= 3):
                     readVec(line_split, jointOrigin, 3, float)
                 if (line_start == 'axis' and level >= 3):
                     readVec(line_split, jointAxis, 4, float)
 
-                #Joints (Vert, Bone, Weight)
+                # Joints (Vert, Bone, Weight)
                 if (line_start == 'weight' and level >= 2):
                     readWeights(line_split, weights)
-                #progress.step()
+                # progress.step()
             progress.leave_substeps("Parse Data end")
 
             for idx, name in enumerate(jointNames):
@@ -779,8 +779,7 @@ def read_dmesh(operator, context, filepath):
                 if name:
                     jointParents[idx] = boneRenameBlender(name)
 
-
-            #create armature
+            # create armature
             armature_ob = None
             if jointNames:
                 boneCount = len(jointNames)
@@ -805,7 +804,7 @@ def read_dmesh(operator, context, filepath):
                 progress.leave_substeps("create bones end")
 
                 # set all bone parents
-                progress.enter_substeps(boneCount,"parenting bones")
+                progress.enter_substeps(boneCount, "parenting bones")
                 for idx, jointParent in enumerate(jointParents):
                     if (jointParent is not None):
                         editBone = armature_da.edit_bones[idx]
@@ -813,9 +812,9 @@ def read_dmesh(operator, context, filepath):
                     progress.step()
                 progress.leave_substeps("parenting bones end")
 
-                #origins of each bone is relative to its parent
-                #recalc all origins
-                progress.enter_substeps(boneCount,"aligning bones")
+                # origins of each bone is relative to its parent
+                # recalc all origins
+                progress.enter_substeps(boneCount, "aligning bones")
                 rootBones = [rootBone for rootBone in armature_da.edit_bones if rootBone.parent is None]
                 for rootBone in rootBones:
                     idx = jointNames.index(rootBone.name)
@@ -846,15 +845,14 @@ def read_dmesh(operator, context, filepath):
             if armature_ob:
                 armature_ob.select_set(state=True)
 
-
             # Create mesh (verts and faces)
-            progress.enter_substeps(len(meshFaces),"creating meshes")
+            progress.enter_substeps(len(meshFaces), "creating meshes")
             for meshName, face_verts in meshFaces.items():
-                #face_verts = meshFaces[meshName]
+                # face_verts = meshFaces[meshName]
                 face_uvs = meshUvs[meshName]
                 smoothGroups = meshSmoothGroups[meshName]
 
-                progress.enter_substeps(1,"vertdic")
+                progress.enter_substeps(1, "vertdic")
                 vertDic = []
                 for face in face_verts:
                     for vertIdx in face:
@@ -862,24 +860,24 @@ def read_dmesh(operator, context, filepath):
                             vertDic.append(vertIdx)
                 progress.leave_substeps("vertdic end")
 
-                #Obtain mesh exclusive verts and renumerate for faces
-                progress.enter_substeps(1,"local verts")
+                # Obtain mesh exclusive verts and renumerate for faces
+                progress.enter_substeps(1, "local verts")
                 objVerts = [vert_data[oldIdx] for oldIdx in vertDic]
                 objFaces = [tuple(vertDic.index(oldIdx) for oldIdx in face)[::-1] for face in face_verts]
                 progress.leave_substeps("local verts end")
 
-                progress.enter_substeps(1,"mesh data")
+                progress.enter_substeps(1, "mesh data")
                 mesh_data = bpy.data.meshes.new(meshName)
                 mesh_data.from_pydata(list(map(coordTransform, objVerts)), [], objFaces)
-                #Shade smooth
+                # Shade smooth
                 mesh_data.use_auto_smooth = True
                 mesh_data.auto_smooth_angle = pi
                 mesh_data.polygons.foreach_set("use_smooth",
-                        [True] * len(mesh_data.polygons))
+                                               [True] * len(mesh_data.polygons))
                 progress.leave_substeps("mesh data end")
 
                 # apply UVs
-                progress.enter_substeps(1,"uv")
+                progress.enter_substeps(1, "uv")
                 useUvs = True
                 if useUvs and face_uvs is not None:
                     mesh_data.uv_layers.new()
@@ -890,7 +888,7 @@ def read_dmesh(operator, context, filepath):
 
                 useSmooth = True
                 if useSmooth:
-                    #unique_smooth_groups
+                    # unique_smooth_groups
                     unique_smooth_groups = {}
                     for g in set(smoothGroups):
                         unique_smooth_groups[g] = None
@@ -900,8 +898,8 @@ def read_dmesh(operator, context, filepath):
                         smooth_group_users = {context_smooth_group: {} for context_smooth_group in unique_smooth_groups.keys()}
                         context_smooth_group_old = -1
 
-                    #detect if edge is used in faces with different Smoothing Groups
-                    progress.enter_substeps(1,"detect smooth")
+                    # detect if edge is used in faces with different Smoothing Groups
+                    progress.enter_substeps(1, "detect smooth")
                     for idx, face_vert_loc_indices in enumerate(objFaces):
                         len_face_vert_loc_indices = len(face_vert_loc_indices)
                         context_smooth_group = smoothGroups[idx]
@@ -918,7 +916,7 @@ def read_dmesh(operator, context, filepath):
                     progress.leave_substeps("detect smooth end")
 
                     # Build sharp edges
-                    progress.enter_substeps(1,"build sharp")
+                    progress.enter_substeps(1, "build sharp")
                     if unique_smooth_groups:
                         for edge_dict in smooth_group_users.values():
                             for key, users in edge_dict.items():
@@ -927,7 +925,7 @@ def read_dmesh(operator, context, filepath):
                     progress.leave_substeps("build sharp end")
 
                     # Mark sharp edges
-                    progress.enter_substeps(1,"mark sharp")
+                    progress.enter_substeps(1, "mark sharp")
                     if unique_smooth_groups and sharp_edges:
                         for e in mesh_data.edges:
                             if e.key in sharp_edges:
@@ -935,14 +933,13 @@ def read_dmesh(operator, context, filepath):
                         mesh_data.show_edge_sharp = True
                     progress.leave_substeps("mark sharp end")
 
-
-                progress.enter_substeps(1,"linking")
+                progress.enter_substeps(1, "linking")
                 # link data to new Object
                 mesh_obj = bpy.data.objects.new(mesh_data.name, mesh_data)
                 progress.leave_substeps("linking end")
 
-                #Assign vertex weights
-                progress.enter_substeps(1,"weights")
+                # Assign vertex weights
+                progress.enter_substeps(1, "weights")
                 if weights:
                     for w in [weight for weight in weights if weight[0] in vertDic]:
                         boneName = jointNames[w[1]]
@@ -955,12 +952,12 @@ def read_dmesh(operator, context, filepath):
                             vertGroup.add([vertDic.index(w[0])], w[2], 'REPLACE')
                 progress.leave_substeps("weights end")
 
-                #parenting
-                progress.enter_substeps(1,"parent")
+                # parenting
+                progress.enter_substeps(1, "parent")
                 if armature_ob:
-                    #parent armature
+                    # parent armature
                     mesh_obj.parent = armature_ob
-                    #armature modifier
+                    # armature modifier
                     mod = mesh_obj.modifiers.new(type="ARMATURE", name="Armature")
                     mod.use_vertex_groups = True
                     mod.object = armature_ob
@@ -968,18 +965,19 @@ def read_dmesh(operator, context, filepath):
 
                 linkToActiveCollection(mesh_obj)
                 mesh_obj.select_set(state=True)
-                #scene.update()
+                # scene.update()
                 progress.step()
             progress.leave_substeps("creating meshes end")
 
     return {'FINISHED'}
+
 
 class ImportHaydeeDMesh(Operator, ImportHelper):
     bl_idname = "haydee_importer.dmesh"
     bl_label = "Import Haydee DMesh (.dmesh)"
     bl_options = {'REGISTER', 'UNDO'}
     filename_ext = ".dmesh"
-    filter_glob : StringProperty(
+    filter_glob: StringProperty(
             default="*.dmesh",
             options={'HIDDEN'},
             maxlen=255,  # Max internal buffer length, longer would be clamped.
@@ -1001,7 +999,7 @@ def read_mesh(operator, context, filepath, outfitName):
     print('Mesh:', filepath)
     with ProgressReport(context.window_manager) as progReport:
         with ProgressReportSubstep(progReport, 4,
-                "Importing mesh", "Finish Importing dmesh") as progress:
+                                   "Importing mesh", "Finish Importing dmesh") as progress:
             if (bpy.context.mode != 'OBJECT'):
                 bpy.ops.object.mode_set(mode='OBJECT')
 
@@ -1024,7 +1022,7 @@ def read_mesh(operator, context, filepath, outfitName):
             progress.leave_substeps("Read file end")
 
             (signature, chunkCount, totalSize) = \
-                    struct.unpack('20sII', data[0:SIGNATURE_SIZE])
+                struct.unpack('20sII', data[0:SIGNATURE_SIZE])
             signature = decodeText(signature)
             print('Signature:', signature)
             if signature != 'HD_CHUNK':
@@ -1034,7 +1032,7 @@ def read_mesh(operator, context, filepath, outfitName):
 
             offset = SIGNATURE_SIZE + (CHUNK_SIZE * chunkCount)
             (vertCount, loopCount, x1, y1, z1, x2, y2, z2) = \
-                    struct.unpack('II3f3f', data[offset:offset + INIT_INFO])
+                struct.unpack('II3f3f', data[offset:offset + INIT_INFO])
 
             posTop = Vector((-x1, z1, -y1))
             posBottom = Vector((-x2, z2, -y2))
@@ -1048,7 +1046,8 @@ def read_mesh(operator, context, filepath, outfitName):
 
             for n in range(vertCount):
                 offset = delta + (VERT_SIZE * n)
-                (x, y, z, u, v, w,
+                (
+                        x, y, z, u, v, w,
                         normX, normY, normZ,
                         tanX, tanY, tanZ,
                         bitanX, bitanY, bitanZ) = \
@@ -1063,26 +1062,26 @@ def read_mesh(operator, context, filepath, outfitName):
             faceCount = loopCount // 3
             delta = headerSize + (VERT_SIZE * vertCount)
             face_data = []
-            print('faceCount',faceCount)
+            print('faceCount', faceCount)
             for n in range(faceCount):
                 offset = delta + (FACE_SIZE * n)
-                (v1, v2 ,v3) = struct.unpack('3I', data[offset:offset + FACE_SIZE])
+                (v1, v2, v3) = struct.unpack('3I', data[offset:offset + FACE_SIZE])
                 face = [v3, v2, v1]
                 face_data.append(face)
 
             # Create Mesh
-            progress.enter_substeps(1,"mesh data")
+            progress.enter_substeps(1, "mesh data")
             mesh_data = bpy.data.meshes.new(DEFAULT_MESH_NAME)
             mesh_data.from_pydata(vert_data, [], face_data)
-            #Shade smooth
+            # Shade smooth
             mesh_data.use_auto_smooth = True
             mesh_data.auto_smooth_angle = pi
             mesh_data.polygons.foreach_set("use_smooth",
-                    [True] * len(mesh_data.polygons))
+                                           [True] * len(mesh_data.polygons))
             progress.leave_substeps("mesh data end")
 
             # apply UVs
-            progress.enter_substeps(1,"uv")
+            progress.enter_substeps(1, "uv")
             useUvs = True
             if useUvs and uv_data is not None:
                 mesh_data.uv_layers.new()
@@ -1091,7 +1090,7 @@ def read_mesh(operator, context, filepath, outfitName):
                     blen_uvs.data[loop.index].uv = uv_data[loop.vertex_index]
             progress.leave_substeps("uv end")
 
-            #normals
+            # normals
             use_edges = True
             mesh_data.create_normals_split()
             meshCorrected = mesh_data.validate(clean_customdata=False)  # *Very* important to not remove nors!
@@ -1106,12 +1105,13 @@ def read_mesh(operator, context, filepath, outfitName):
 
     return {'FINISHED'}
 
+
 class ImportHaydeeMesh(Operator, ImportHelper):
     bl_idname = "haydee_importer.mesh"
     bl_label = "Import Haydee mesh (.mesh)"
     bl_options = {'REGISTER', 'UNDO'}
     filename_ext = ".mesh"
-    filter_glob : StringProperty(
+    filter_glob: StringProperty(
             default="*.mesh",
             options={'HIDDEN'},
             maxlen=255,  # Max internal buffer length, longer would be clamped.
@@ -1231,12 +1231,13 @@ def read_motion(operator, context, filepath):
     wm.progress_end()
     return {'FINISHED'}
 
+
 class ImportHaydeeMotion(Operator, ImportHelper):
     bl_idname = "haydee_importer.motion"
     bl_label = "Import Haydee Motion (.motion)"
     bl_options = {'REGISTER', 'UNDO'}
     filename_ext = ".motion"
-    filter_glob : StringProperty(
+    filter_glob: StringProperty(
             default="*.motion",
             options={'HIDDEN'},
             maxlen=255,  # Max internal buffer length, longer would be clamped.
@@ -1259,7 +1260,7 @@ class ImportHaydeeDMotion(Operator, ImportHelper):
     bl_label = "Import Haydee DMotion (.dmot)"
     bl_options = {'REGISTER', 'UNDO'}
     filename_ext = ".dmot"
-    filter_glob : StringProperty(
+    filter_glob: StringProperty(
             default="*.dmot",
             options={'HIDDEN'},
             maxlen=255,  # Max internal buffer length, longer would be clamped.
@@ -1360,7 +1361,7 @@ class ImportHaydeePose(Operator, ImportHelper):
     bl_label = "Import Haydee Pose (.pose)"
     bl_options = {'REGISTER', 'UNDO'}
     filename_ext = ".pose"
-    filter_glob : StringProperty(
+    filter_glob: StringProperty(
             default="*.pose",
             options={'HIDDEN'},
             maxlen=255,  # Max internal buffer length, longer would be clamped.
@@ -1383,7 +1384,7 @@ class ImportHaydeeDPose(Operator, ImportHelper):
     bl_label = "Import Haydee DPose (.dpose)"
     bl_options = {'REGISTER', 'UNDO'}
     filename_ext = ".dpose"
-    filter_glob : StringProperty(
+    filter_glob: StringProperty(
             default="*.dpose",
             options={'HIDDEN'},
             maxlen=255,  # Max internal buffer length, longer would be clamped.
@@ -1397,7 +1398,7 @@ class ImportHaydeeDPose(Operator, ImportHelper):
 #  .outfit importer
 # --------------------------------------------------------------------------------
 
-#profile
+# profile
 def read_outfit(operator, context, filepath):
     print('Outfit:', filepath)
     with ProgressReport(context.window_manager) as progReport:
@@ -1425,7 +1426,7 @@ def read_outfit(operator, context, filepath):
             skinFiles = []
             materialFiles = []
 
-            #steps = len(data.getvalue().splitlines()) - 1
+            # steps = len(data.getvalue().splitlines()) - 1
             progress.enter_substeps(1, "Parse Data")
             # Read model data
             for lineData in data:
@@ -1442,25 +1443,25 @@ def read_outfit(operator, context, filepath):
                     level -= 1
                     contextName = None
 
-                #Joints
+                # Joints
                 if (line_start == 'name' and level == 1):
-                    outfitName = line_split[1].replace('"','')
+                    outfitName = line_split[1].replace('"', '')
 
                 if (line_start == 'mesh' and level == 2):
-                    meshFiles.append(line_split[1].replace('"',''))
+                    meshFiles.append(line_split[1].replace('"', ''))
                     skinFiles.append(None)
                     materialFiles.append(None)
                 if (line_start == 'skin' and level == 2):
-                    skinFiles[len(meshFiles)-1] = line_split[1].replace('"','')
+                    skinFiles[len(meshFiles)-1] = line_split[1].replace('"', '')
                 if (line_start == 'material' and level == 2):
-                    materialFiles[len(meshFiles)-1] = line_split[1].replace('"','')
+                    materialFiles[len(meshFiles)-1] = line_split[1].replace('"', '')
 
             combo = []
             for idx in range(len(meshFiles)):
                 mesh = meshFiles[idx]
                 skin = skinFiles[idx]
                 matr = materialFiles[idx]
-                obj = {'mesh':mesh, 'skin':skin, 'matr':matr}
+                obj = {'mesh': mesh, 'skin': skin, 'matr': matr}
                 if obj not in combo:
                     combo.append(obj)
 
@@ -1481,8 +1482,7 @@ def read_outfit(operator, context, filepath):
                 if obj['matr']:
                     matrpath = haydeeFilepath(filepath, obj['matr'])
 
-
-                #Create Mesh
+                # Create Mesh
                 if meshpath and os.path.exists(meshpath):
                     read_mesh(operator, context, meshpath, outfitName)
                     imported_meshes.append(bpy.context.view_layer.objects.active)
@@ -1492,7 +1492,7 @@ def read_outfit(operator, context, filepath):
 
                 mesh_obj = bpy.context.view_layer.objects.active
 
-                #Create Material
+                # Create Material
                 if matrpath and os.path.exists(matrpath):
                     read_material(operator, context, matrpath)
                 else:
@@ -1500,7 +1500,7 @@ def read_outfit(operator, context, filepath):
                         filename = os.path.splitext(os.path.basename(matrpath))[0]
                         print('File not found:', filename, matrpath)
 
-                #Create Skin (bone weights/bones)
+                # Create Skin (bone weights/bones)
                 if skinpath and os.path.exists(skinpath):
                     read_skin(operator, context, skinpath, armature_obj)
                 else:
@@ -1519,12 +1519,13 @@ def read_outfit(operator, context, filepath):
 
     return {'FINISHED'}
 
+
 class ImportHaydeeOutfit(Operator, ImportHelper):
     bl_idname = "haydee_importer.outfit"
     bl_label = "Import Haydee Outfit (.outfit)"
     bl_options = {'REGISTER', 'UNDO'}
     filename_ext = ".outfit"
-    filter_glob : StringProperty(
+    filter_glob: StringProperty(
             default="*.outfit",
             options={'HIDDEN'},
             maxlen=255,  # Max internal buffer length, longer would be clamped.
@@ -1546,7 +1547,7 @@ def read_skin(operator, context, filepath, armature_ob):
 
     with ProgressReport(context.window_manager) as progReport:
         with ProgressReportSubstep(progReport, 5,
-                "Importing mesh", "Finish Importing dmesh") as progress:
+                                   "Importing mesh", "Finish Importing dmesh") as progress:
             if (bpy.context.mode != 'OBJECT'):
                 bpy.ops.object.mode_set(mode='OBJECT')
 
@@ -1565,7 +1566,7 @@ def read_skin(operator, context, filepath, armature_ob):
             progress.leave_substeps("Read file end")
 
             (signature, chunkCount, totalSize) = \
-                    struct.unpack('20sII', data[0:SIGNATURE_SIZE])
+                struct.unpack('20sII', data[0:SIGNATURE_SIZE])
             signature = decodeText(signature)
             print('Signature:', signature)
             if signature != 'HD_CHUNK':
@@ -1575,11 +1576,9 @@ def read_skin(operator, context, filepath, armature_ob):
 
             offset = SIGNATURE_SIZE + (CHUNK_SIZE * chunkCount)
             (vertCount, boneCount) = \
-                    struct.unpack('II', data[offset:offset + INIT_INFO])
-
+                struct.unpack('II', data[offset:offset + INIT_INFO])
 
             vert_data = []
-
             headerSize = SIGNATURE_SIZE + (CHUNK_SIZE * chunkCount) + INIT_INFO
             delta = headerSize
             for n in range(vertCount):
@@ -1614,8 +1613,7 @@ def read_skin(operator, context, filepath, armature_ob):
                               (f9,  f10, f11, f12),
                               (f13, f14, f15, f16)))
                 vec = Vector((vx, vy, vz, vw))
-                bone_data.append({'name':name, 'mat':mat, 'vec':vec})
-
+                bone_data.append({'name': name, 'mat': mat, 'vec': vec})
 
             mesh_obj = bpy.context.view_layer.objects.active
 
@@ -1642,16 +1640,16 @@ def read_skin(operator, context, filepath, armature_ob):
 
             # create all Bones
             progress.enter_substeps(boneCount, "create bones")
-            #swap rows root bones
+            # swap rows root bones
             swap_rows = Matrix(((-1, 0,  0, 0),
-                                ( 0, 0, -1, 0),
-                                ( 0, 1,  0, 0),
-                                ( 0, 0,  0, 1)))
-            #swap cols root bones
-            swap_cols = Matrix((( 0, 1, 0, 0),
-                                ( 0, 0, 1, 0),
-                                ( 1, 0, 0, 0),
-                                ( 0, 0, 0, 1)))
+                                (0,  0, -1, 0),
+                                (0,  1,  0, 0),
+                                (0,  0,  0, 1)))
+            # swap cols root bones
+            swap_cols = Matrix(((0, 1, 0, 0),
+                                (0, 0, 1, 0),
+                                (1, 0, 0, 0),
+                                (0, 0, 0, 1)))
             for idx, b_data in enumerate(bone_data):
                 boneName = b_data['name']
                 if not armature_ob.data.edit_bones.get(boneName):
@@ -1660,7 +1658,7 @@ def read_skin(operator, context, filepath, armature_ob):
                     editBone.tail = Vector(editBone.head) + Vector((0, 0, 10))
                     pos = Vector(mat.to_3x3() @ mat.row[3].xyz)
                     mat.translation = (-pos.x, -pos.y, -pos.z)
-                    #print(boneName,mat)
+                    # print(boneName, mat)
                     editBone.matrix = swap_rows @ mat @ swap_cols
                 progress.step()
 
@@ -1669,9 +1667,9 @@ def read_skin(operator, context, filepath, armature_ob):
 
             progress.enter_substeps(1, "parent armature")
             if armature_ob:
-                #parent armature
+                # parent armature
                 mesh_obj.parent = armature_ob
-                #armature modifier
+                # armature modifier
                 mod = mesh_obj.modifiers.new(type="ARMATURE", name="Armature")
                 mod.use_vertex_groups = True
                 mod.object = armature_ob
@@ -1685,7 +1683,7 @@ class ImportHaydeeSkin(Operator, ImportHelper):
     bl_label = "Import Haydee Skin (.skin)"
     bl_options = {'REGISTER', 'UNDO'}
     filename_ext = ".skin"
-    filter_glob : StringProperty(
+    filter_glob: StringProperty(
             default="*.skin",
             options={'HIDDEN'},
             maxlen=255,  # Max internal buffer length, longer would be clamped.
@@ -1739,7 +1737,7 @@ def read_material(operator, context, filepath):
             emissionMap = None
             blend = None
 
-            #steps = len(data.getvalue().splitlines()) - 1
+            # steps = len(data.getvalue().splitlines()) - 1
             progress.enter_substeps(1, "Parse Data")
             # Read model data
             for lineData in data:
@@ -1756,23 +1754,22 @@ def read_material(operator, context, filepath):
                     level -= 1
                     contextName = None
 
-                #textures
+                # textures
                 if (line_start == 'diffuseMap' and level == 1):
-                    diffuseMap = line_split[1].replace('"','')
+                    diffuseMap = line_split[1].replace('"', '')
                 if (line_start == 'normalMap' and level == 1):
-                    normalMap = line_split[1].replace('"','')
+                    normalMap = line_split[1].replace('"', '')
                 if (line_start == 'specularMap' and level == 1):
-                    specularMap = line_split[1].replace('"','')
+                    specularMap = line_split[1].replace('"', '')
                 if (line_start == 'emissionMap' and level == 1):
-                    emissionMap = line_split[1].replace('"','')
+                    emissionMap = line_split[1].replace('"', '')
                 if (line_start == 'type' and level == 1):
-                    blend = line_split[1].replace('"','')
+                    blend = line_split[1].replace('"', '')
 
             obj = bpy.context.view_layer.objects.active
             basedir = os.path.dirname(filepath)
             matName = os.path.basename(filepath)
             matName = os.path.splitext(matName)[0]
-
 
             if diffuseMap:
                 diffuseMap = haydeeFilepath(basedir, diffuseMap)
@@ -1797,7 +1794,7 @@ class ImportHaydeeMaterial(Operator, ImportHelper):
     bl_label = "Import Haydee Material (.mtl)"
     bl_options = {'REGISTER', 'UNDO'}
     filename_ext = ".mtl"
-    filter_glob : StringProperty(
+    filter_glob: StringProperty(
             default="*.mtl",
             options={'HIDDEN'},
             maxlen=255,  # Max internal buffer length, longer would be clamped.
@@ -1810,12 +1807,12 @@ class ImportHaydeeMaterial(Operator, ImportHelper):
 def haydeeFilepath(mainpath, filepath):
     path = filepath
     if not os.path.isabs(filepath):
-        #Current Folder
+        # Current Folder
         currPath = os.path.relpath(filepath, r'outfits')
         basedir = os.path.dirname(mainpath)
         path = os.path.join(basedir, currPath)
         if not (os.path.isfile(path)):
-            #Outfit Folder
+            # Outfit Folder
             path = filepath
             idx = basedir.lower().find(r'\outfit')
             path = basedir[:idx]
@@ -1866,4 +1863,3 @@ if __name__ == "__main__":
 
     # test call
     # bpy.ops.haydee_importer.motion('INVOKE_DEFAULT')
-
