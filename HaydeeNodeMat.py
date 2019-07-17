@@ -5,6 +5,7 @@ import os
 from mathutils import Vector
 
 COLOR_SPACE_NONE = 'Non-Color'
+ALPHA_MODE_CHANNEL = 'CHANNEL_PACKED'
 
 # Nodes Layout
 NODE_FRAME = 'NodeFrame'
@@ -72,6 +73,7 @@ def load_image(textureFilepath, forceNewTexture=False):
                 float_buffer=False)
             image.source = 'FILE'
             image.filepath = textureFilepath
+        image.alpha_mode = ALPHA_MODE_CHANNEL
 
     return image
 
@@ -105,23 +107,30 @@ def create_cycle_node_material(material, useAlpha, diffuseFile, normalFile, spec
     specularTextureNode.label = 'Roughness Specular Metalic'
     specularTextureNode.image = load_image(specularFile)
     if (specularTextureNode.image):
-        specularTextureNode.image.colorspace_settings.name = COLOR_SPACE_NONE
+        try:
+            specularTextureNode.image.colorspace_settings.name = COLOR_SPACE_NONE
+        except TypeError:
+            print('Warning : Could not set Image property')
     specularTextureNode.location = diffuseTextureNode.location + Vector((0, -450))
 
     normalTextureRgbNode = node_tree.nodes.new(TEXTURE_IMAGE_NODE)
     normalTextureRgbNode.label = 'Haydee Normal'
     normalTextureRgbNode.image = load_image(normalFile)
     if normalTextureRgbNode.image:
-        normalTextureRgbNode.image.colorspace_settings.name = COLOR_SPACE_NONE
-        normalTextureRgbNode.image.use_alpha = False
+        try:
+            normalTextureRgbNode.image.colorspace_settings.name = COLOR_SPACE_NONE
+        except TypeError:
+            print('Warning : Could not set Image property')
     normalTextureRgbNode.location = specularTextureNode.location + Vector((0, -300))
 
     normalTextureAlphaNode = node_tree.nodes.new(TEXTURE_IMAGE_NODE)
     normalTextureAlphaNode.label = 'Haydee Normal Alpha'
     normalTextureAlphaNode.image = load_image(normalFile, True)
     if normalTextureAlphaNode.image:
-        normalTextureAlphaNode.image.colorspace_settings.name = COLOR_SPACE_NONE
-        normalTextureAlphaNode.image.use_alpha = True
+        try:
+            normalTextureAlphaNode.image.colorspace_settings.name = COLOR_SPACE_NONE
+        except TypeError:
+            print('Warning : Could not set Image property')
     normalTextureAlphaNode.location = specularTextureNode.location + Vector((0, -600))
 
     haydeeNormalMapNode = node_tree.nodes.new(NODE_GROUP)
