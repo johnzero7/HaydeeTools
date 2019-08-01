@@ -5,7 +5,7 @@
 bl_info = {
     "name": "Haydee I/O Scripts",
     "author": "johnzero7",
-    "version": (1, 1, 2),
+    "version": (1, 2, 0),
     "blender": (2, 80, 0),
     "location": "File > Import-Export > HaydeeTools",
     "description": "Import-Export scripts for Haydee",
