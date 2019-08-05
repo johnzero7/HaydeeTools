@@ -1,12 +1,14 @@
 Haydee Tools
 =========
 Blender an addon to Export/Import Haydee assets.
-With Blender 2.80 Beta released there where many changes.
 
-From v1.1.0 of this addon will only work with Blender 2.80+ (and viceversa).
+With Blender 2.80 released there where many changes.
 
+From v1.2.0 of this addon will only work with Blender 2.80+ (and viceversa).
 For Blender 2.79 download v1.0.6
 
+Blender 2.80 ==> v1.2.0
+Blender 2.79 ==> v1.0.6
 
 Main Features:
 
