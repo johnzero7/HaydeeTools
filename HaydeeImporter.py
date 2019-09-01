@@ -322,7 +322,7 @@ def read_skel(operator, context, filepath):
                         groupName = 'TARGET'
                         boneGroup = armature_ob.pose.bone_groups.get(groupName)
                         if not boneGroup:
-                            boneGroup = armature_ob.pose.bone_groups.new(groupName)
+                            boneGroup = armature_ob.pose.bone_groups.new(name=groupName)
                             boneGroup.color_set = 'THEME15'
                         pose_bone.bone_group = boneGroup
                         XY = bool(flags & 0b0001)  # fix order YZ
@@ -365,7 +365,7 @@ def read_skel(operator, context, filepath):
                         groupName = 'SMOOTH'
                         boneGroup = armature_ob.pose.bone_groups.get(groupName)
                         if not boneGroup:
-                            boneGroup = armature_ob.pose.bone_groups.new(groupName)
+                            boneGroup = armature_ob.pose.bone_groups.new(name=groupName)
                             boneGroup.color_set = 'THEME14'
                         pose_bone.bone_group = boneGroup
                         driver = armature_ob.driver_add(f'pose.bones["{bone_name}"].rotation_quaternion')
