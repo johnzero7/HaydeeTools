@@ -81,7 +81,7 @@ def recurBonesOrigin(progress, parentBone, jointNames, mats):
     for childBone in parentBone.children:
         if childBone:
             idx = jointNames.index(childBone.name)
-            mat = mats[idx]
+            child_mat = mats[idx]
             # INV row
             x1 = Matrix(((0, 0, -1, 0),
                          (1, 0,  0, 0),
@@ -93,7 +93,7 @@ def recurBonesOrigin(progress, parentBone, jointNames, mats):
                          (-1, 0, 0, 0),
                          (0,  0, 0, 1)))
 
-            childBone.matrix = parentBone.matrix @ (x1 @ mat @ x2)
+            childBone.matrix = parentBone.matrix @ (x1 @ child_mat @ x2)
             recurBonesOrigin(progress, childBone, jointNames, mats)
             progress.step()
 
@@ -126,7 +126,7 @@ def read_skel(operator, context, filepath):
     armature_ob = None
 
     with ProgressReport(context.window_manager) as progReport:
-        with ProgressReportSubstep(progReport, 4, "Importing dmesh", "Finish Importing dmesh") as progress:
+        with ProgressReportSubstep(progReport, 4, "Importing skel", "Finish Importing skel") as progress:
 
             headerSize = SIGNATURE_SIZE + (CHUNK_SIZE * chunkCount) + INIT_INFO
             bones = {}
@@ -217,7 +217,7 @@ def read_skel(operator, context, filepath):
                 print('Importing Armature', str(boneCount), 'bones')
 
                 armature_da = bpy.data.armatures.new(ARMATURE_NAME)
-                armature_da.display_type = 'STICK'
+                #armature_da.display_type = 'STICK'
                 armature_ob = bpy.data.objects.new(ARMATURE_NAME, armature_da)
                 armature_ob.show_in_front = True
 
@@ -318,62 +318,64 @@ def read_skel(operator, context, filepath):
                     pose_bone.bone.layers[1] = True
                     pose_bone.bone.layers[0] = False
 
-                    if (type == 1):  # TARGET
-                        groupName = 'TARGET'
-                        boneGroup = armature_ob.pose.bone_groups.get(groupName)
-                        if not boneGroup:
-                            boneGroup = armature_ob.pose.bone_groups.new(name=groupName)
-                            boneGroup.color_set = 'THEME15'
-                        pose_bone.bone_group = boneGroup
-                        XY = bool(flags & 0b0001)  # fix order YZ
-                        XY = bool(flags & 0b0010)  # fix order ZY
-                        constraint = pose_bone.constraints.new('DAMPED_TRACK')
-                        constraint.name = 'Target'
-                        constraint.target = armature_ob
-                        constraint.subtarget = target_name
+                    useDrivers = False
+                    if useDrivers:
+                        if (type == 1):  # TARGET
+                            groupName = 'TARGET'
+                            boneGroup = armature_ob.pose.bone_groups.get(groupName)
+                            if not boneGroup:
+                                boneGroup = armature_ob.pose.bone_groups.new(name=groupName)
+                                boneGroup.color_set = 'THEME15'
+                            pose_bone.bone_group = boneGroup
+                            XY = bool(flags & 0b0001)  # fix order YZ
+                            XY = bool(flags & 0b0010)  # fix order ZY
+                            constraint = pose_bone.constraints.new('DAMPED_TRACK')
+                            constraint.name = 'Target'
+                            constraint.target = armature_ob
+                            constraint.subtarget = target_name
 
-                    if (type == 2 and 0 == 1):  # SMOOTH
-                        NEGY = bool(flags & 0b0001)  # fix order NEGY
-                        NEGZ = bool(flags & 0b0010)  # fix order NEGZ
-                        POSY = bool(flags & 0b0011)  # fix order POSY
-                        POSZ = bool(flags & 0b0100)  # fix order POSZ
-                        pose_bone.bone.use_inherit_scale = False
-                        pose_bone.bone.use_inherit_rotation = False
+                        if (type == 2 and 0 == 1):  # SMOOTH
+                            NEGY = bool(flags & 0b0001)  # fix order NEGY
+                            NEGZ = bool(flags & 0b0010)  # fix order NEGZ
+                            POSY = bool(flags & 0b0011)  # fix order POSY
+                            POSZ = bool(flags & 0b0100)  # fix order POSZ
+                            pose_bone.bone.use_inherit_scale = False
+                            pose_bone.bone.use_inherit_rotation = False
 
-                        constraint_parent = pose_bone.constraints.new('CHILD_OF')
-                        constraint_parent.name = 'Smooth Parent'
-                        constraint_parent.target = armature_ob
-                        constraint_parent.subtarget = parent_name
-                        constraint_parent.use_location_x = False
-                        constraint_parent.use_location_y = False
-                        constraint_parent.use_location_z = False
-                        matrix = constraint_parent.target.data.bones[constraint_parent.subtarget].matrix_local.inverted()
-                        constraint_parent.inverse_matrix = matrix
-                        constraint_parent.influence = .5
+                            constraint_parent = pose_bone.constraints.new('CHILD_OF')
+                            constraint_parent.name = 'Smooth Parent'
+                            constraint_parent.target = armature_ob
+                            constraint_parent.subtarget = parent_name
+                            constraint_parent.use_location_x = False
+                            constraint_parent.use_location_y = False
+                            constraint_parent.use_location_z = False
+                            matrix = constraint_parent.target.data.bones[constraint_parent.subtarget].matrix_local.inverted()
+                            constraint_parent.inverse_matrix = matrix
+                            constraint_parent.influence = .5
 
-                        constraint_child = pose_bone.constraints.new('CHILD_OF')
-                        constraint_child.name = 'Smooth Child'
-                        constraint_child.target = armature_ob
-                        constraint_child.subtarget = target_name
-                        constraint_child.use_location_x = False
-                        constraint_child.use_location_y = False
-                        constraint_child.use_location_z = False
-                        matrix = constraint_child.target.data.bones[constraint_child.subtarget].matrix_local.inverted()
-                        constraint_child.inverse_matrix = matrix
-                        constraint_child.influence = .5
-                    if (type == 2):  # SMOOTH
-                        groupName = 'SMOOTH'
-                        boneGroup = armature_ob.pose.bone_groups.get(groupName)
-                        if not boneGroup:
-                            boneGroup = armature_ob.pose.bone_groups.new(name=groupName)
-                            boneGroup.color_set = 'THEME14'
-                        pose_bone.bone_group = boneGroup
-                        driver = armature_ob.driver_add(f'pose.bones["{bone_name}"].rotation_quaternion')
-                        expression = '(mld.to_quaternion().inverted() @ mls.to_quaternion() @ mbs.to_quaternion() @ mls.to_quaternion().inverted() @ mld.to_quaternion()).slerp(((1, 0, 0, 0)), .5)'
-                        build_driver(driver, expression, 0, bone_name, target_name)
-                        build_driver(driver, expression, 1, bone_name, target_name)
-                        build_driver(driver, expression, 2, bone_name, target_name)
-                        build_driver(driver, expression, 3, bone_name, target_name)
+                            constraint_child = pose_bone.constraints.new('CHILD_OF')
+                            constraint_child.name = 'Smooth Child'
+                            constraint_child.target = armature_ob
+                            constraint_child.subtarget = target_name
+                            constraint_child.use_location_x = False
+                            constraint_child.use_location_y = False
+                            constraint_child.use_location_z = False
+                            matrix = constraint_child.target.data.bones[constraint_child.subtarget].matrix_local.inverted()
+                            constraint_child.inverse_matrix = matrix
+                            constraint_child.influence = .5
+                        if (type == 2):  # SMOOTH
+                            groupName = 'SMOOTH'
+                            boneGroup = armature_ob.pose.bone_groups.get(groupName)
+                            if not boneGroup:
+                                boneGroup = armature_ob.pose.bone_groups.new(name=groupName)
+                                boneGroup.color_set = 'THEME14'
+                            pose_bone.bone_group = boneGroup
+                            driver = armature_ob.driver_add(f'pose.bones["{bone_name}"].rotation_quaternion')
+                            expression = '(mld.to_quaternion().inverted() @ mls.to_quaternion() @ mbs.to_quaternion() @ mls.to_quaternion().inverted() @ mld.to_quaternion()).slerp(((1, 0, 0, 0)), .5)'
+                            build_driver(driver, expression, 0, bone_name, target_name)
+                            build_driver(driver, expression, 1, bone_name, target_name)
+                            build_driver(driver, expression, 2, bone_name, target_name)
+                            build_driver(driver, expression, 3, bone_name, target_name)
 
             armature_ob.select_set(state=True)
 
@@ -408,6 +410,7 @@ def build_driver(driver, expression, component, source_bone, target_bone):
 class ImportHaydeeSkel(Operator, ImportHelper):
     bl_idname = "haydee_importer.skel"
     bl_label = "Import Haydee Skel (.skel)"
+    bl_description = "Import a Haydee Skeleton"
     bl_options = {'REGISTER', 'UNDO'}
     filename_ext = ".skel"
     filter_glob: StringProperty(
@@ -442,7 +445,8 @@ def read_dskel(operator, context, filepath):
         with ProgressReportSubstep(progReport, 4, "Importing dskel", "Finish Importing dskel") as progress:
 
             data = None
-            with open(filepath, "r") as a_file:
+            encoding = "utf-8-sig"
+            with open(filepath, "r", encoding=encoding) as a_file:
                 data = io.StringIO(a_file.read())
 
             line = stripLine(data.readline())
@@ -524,7 +528,7 @@ def read_dskel(operator, context, filepath):
                 print('Importing Armature', str(boneCount), 'bones')
 
                 armature_da = bpy.data.armatures.new(ARMATURE_NAME)
-                armature_da.display_type = 'STICK'
+                #armature_da.display_type = 'STICK'
                 armature_ob = bpy.data.objects.new(ARMATURE_NAME, armature_da)
                 armature_ob.show_in_front = True
 
@@ -590,6 +594,7 @@ def read_dskel(operator, context, filepath):
 class ImportHaydeeDSkel(Operator, ImportHelper):
     bl_idname = "haydee_importer.dskel"
     bl_label = "Import Haydee DSkel (.dskel)"
+    bl_description = "Import a Haydee DSkeleton"
     bl_options = {'REGISTER', 'UNDO'}
     filename_ext = ".dskel"
     filter_glob: StringProperty(
@@ -659,7 +664,7 @@ def read_dmesh(operator, context, filepath):
                 bpy.ops.object.mode_set(mode='OBJECT')
 
             bpy.ops.object.select_all(action='DESELECT')
-            print("Importing mesh: %s" % filepath)
+            print("Importing dmesh: %s" % filepath)
 
             basename = os.path.basename(filepath)
             collName = os.path.splitext(basename)[0]
@@ -672,7 +677,8 @@ def read_dmesh(operator, context, filepath):
 
             progress.enter_substeps(1, "Read file")
             data = None
-            with open(filepath, "r") as a_file:
+            encoding = "utf-8-sig"
+            with open(filepath, "r", encoding=encoding) as a_file:
                 data = io.StringIO(a_file.read())
             progress.leave_substeps("Read file end")
 
@@ -787,7 +793,7 @@ def read_dmesh(operator, context, filepath):
                 print('Importing Armature', str(boneCount), 'bones')
 
                 armature_da = bpy.data.armatures.new(ARMATURE_NAME)
-                armature_da.display_type = 'STICK'
+                #armature_da.display_type = 'STICK'
                 armature_ob = bpy.data.objects.new(ARMATURE_NAME, armature_da)
                 armature_ob.show_in_front = True
 
@@ -834,7 +840,7 @@ def read_dmesh(operator, context, filepath):
                         boneVec = bone.tail - bone.head
                         norm = proxVec.dot(boneVec) / boneVec.dot(boneVec)
                         if (norm > 0.1):
-                            proyVec = norm @ boneVec
+                            proyVec = norm * boneVec
                             dist = (proxVec - proyVec).length
                             if (dist < 0.001):
                                 bone.tail = center
@@ -930,7 +936,7 @@ def read_dmesh(operator, context, filepath):
                         for e in mesh_data.edges:
                             if e.key in sharp_edges:
                                 e.use_edge_sharp = True
-                        mesh_data.show_edge_sharp = True
+                        # mesh_data.show_edge_sharp = True
                     progress.leave_substeps("mark sharp end")
 
                 progress.enter_substeps(1, "linking")
@@ -975,6 +981,7 @@ def read_dmesh(operator, context, filepath):
 class ImportHaydeeDMesh(Operator, ImportHelper):
     bl_idname = "haydee_importer.dmesh"
     bl_label = "Import Haydee DMesh (.dmesh)"
+    bl_description = "Import a Haydee DMesh"
     bl_options = {'REGISTER', 'UNDO'}
     filename_ext = ".dmesh"
     filter_glob: StringProperty(
@@ -999,7 +1006,7 @@ def read_mesh(operator, context, filepath, outfitName):
     print('Mesh:', filepath)
     with ProgressReport(context.window_manager) as progReport:
         with ProgressReportSubstep(progReport, 4,
-                                   "Importing mesh", "Finish Importing dmesh") as progress:
+                                   "Importing mesh", "Finish Importing mesh") as progress:
             if (bpy.context.mode != 'OBJECT'):
                 bpy.ops.object.mode_set(mode='OBJECT')
 
@@ -1047,11 +1054,13 @@ def read_mesh(operator, context, filepath, outfitName):
             for n in range(vertCount):
                 offset = delta + (VERT_SIZE * n)
                 (
-                        x, y, z, u, v, w,
+                        x, y, z,
+                        u, v,
+                        vcolorR, vcolorG, vcolorB, vcolorA,
                         normX, normY, normZ,
                         tanX, tanY, tanZ,
                         bitanX, bitanY, bitanZ) = \
-                    struct.unpack('3f3f9f', data[offset:offset + VERT_SIZE])
+                    struct.unpack('3f2f4B9f', data[offset:offset + VERT_SIZE])
                 vert = Vector((-x, -z, y))
                 uv = Vector((u, v))
                 norm = Vector((-normX, -normZ, normY))
@@ -1109,6 +1118,7 @@ def read_mesh(operator, context, filepath, outfitName):
 class ImportHaydeeMesh(Operator, ImportHelper):
     bl_idname = "haydee_importer.mesh"
     bl_label = "Import Haydee mesh (.mesh)"
+    bl_description = "Import a Haydee Mesh"
     bl_options = {'REGISTER', 'UNDO'}
     filename_ext = ".mesh"
     filter_glob: StringProperty(
@@ -1173,7 +1183,7 @@ def read_motion(operator, context, filepath):
 
     bpy.ops.object.mode_set(mode='OBJECT')
     bpy.ops.object.select_all(action='DESELECT')
-    armature.hide = False
+    # armature.hide = False
     armature.select_set(state=True)
     bpy.context.view_layer.objects.active = armature
     bpy.ops.object.mode_set(mode='POSE')
@@ -1186,7 +1196,7 @@ def read_motion(operator, context, filepath):
     context.scene.frame_start = 1
     context.scene.frame_end = frameCount
     for pose in context.selected_pose_bones:
-        pose.bone.select_set(state=False)
+        pose.bone.select = False
     for frame in range(1, frameCount+1):
         wm.progress_update(frame-1)
         context.scene.frame_current = frame
@@ -1200,7 +1210,7 @@ def read_motion(operator, context, filepath):
             pose = armature.pose.bones[bone_name]
             if not bone:
                 continue
-            bone.select_set(state=True)
+            bone.select = True
 
             (x, y, z, qx, qz, qy, qw) = bones[bone_name][frame-1]
 
@@ -1226,8 +1236,9 @@ def read_motion(operator, context, filepath):
             bone = armature.data.bones[bone_name]
             if not bone:
                 continue
-            bone.select_set(state=False)
+            bone.select = False
 
+    bpy.ops.object.mode_set(mode='OBJECT')
     wm.progress_end()
     return {'FINISHED'}
 
@@ -1235,6 +1246,7 @@ def read_motion(operator, context, filepath):
 class ImportHaydeeMotion(Operator, ImportHelper):
     bl_idname = "haydee_importer.motion"
     bl_label = "Import Haydee Motion (.motion)"
+    bl_description = "Import a Haydee Motion"
     bl_options = {'REGISTER', 'UNDO'}
     filename_ext = ".motion"
     filter_glob: StringProperty(
@@ -1258,6 +1270,7 @@ def read_dmotion(operator, context, filepath):
 class ImportHaydeeDMotion(Operator, ImportHelper):
     bl_idname = "haydee_importer.dmot"
     bl_label = "Import Haydee DMotion (.dmot)"
+    bl_description = "Import a Haydee DMotion"
     bl_options = {'REGISTER', 'UNDO'}
     filename_ext = ".dmot"
     filter_glob: StringProperty(
@@ -1313,7 +1326,7 @@ def read_pose(operator, context, filepath):
 
     bpy.ops.object.mode_set(mode='OBJECT')
     bpy.ops.object.select_all(action='DESELECT')
-    armature.hide = False
+    # armature.hide = False
     armature.select_set(state=True)
     bpy.context.view_layer.objects.active = armature
     bpy.ops.object.mode_set(mode='POSE')
@@ -1334,7 +1347,7 @@ def read_pose(operator, context, filepath):
         pose = armature.pose.bones.get(bone_name)
         if not bone:
             continue
-        bone.select_set(state=True)
+        bone.select = True
 
         (x, y, z, qx, qz, qy, qw) = bones[bone_name]
 
@@ -1352,6 +1365,7 @@ def read_pose(operator, context, filepath):
 
         pose.matrix = m
 
+    bpy.ops.object.mode_set(mode='OBJECT')
     wm.progress_end()
     return {'FINISHED'}
 
@@ -1359,6 +1373,7 @@ def read_pose(operator, context, filepath):
 class ImportHaydeePose(Operator, ImportHelper):
     bl_idname = "haydee_importer.pose"
     bl_label = "Import Haydee Pose (.pose)"
+    bl_description = "Import a Haydee Pose"
     bl_options = {'REGISTER', 'UNDO'}
     filename_ext = ".pose"
     filter_glob: StringProperty(
@@ -1376,12 +1391,122 @@ class ImportHaydeePose(Operator, ImportHelper):
 # --------------------------------------------------------------------------------
 
 def read_dpose(operator, context, filepath):
+    armature = find_armature(operator, context)
+    if not armature:
+        return {'FINISHED'}
+
+    print('dpose:', filepath)
+    with ProgressReport(context.window_manager) as progReport:
+        with ProgressReportSubstep(progReport, 4, "Importing dpose", "Finish Importing dpose") as progress:
+            if (bpy.context.mode != 'OBJECT'):
+                bpy.ops.object.mode_set(mode='OBJECT')
+
+            bpy.ops.object.select_all(action='DESELECT')
+            print("Importing dpose: %s" % filepath)
+
+            progress.enter_substeps(1, "Read file")
+            data = None
+            encoding = "utf-8-sig"
+            with open(filepath, "r", encoding=encoding) as a_file:
+                data = io.StringIO(a_file.read())
+            progress.leave_substeps("Read file end")
+
+            line = stripLine(data.readline())
+            line_split = line.split()
+            line_start = line_split[0]
+            signature = line_start
+
+            print('Signature:', signature)
+            if signature != 'HD_DATA_TXT':
+                print("Unrecognized signature: %s" % signature)
+                operator.report({'ERROR'}, "Unrecognized file format")
+                return {'FINISHED'}
+
+
+            contextName = None
+            bones = {}
+            transformsCount= None
+            level = 0
+
+            # steps = len(data.getvalue().splitlines()) - 1
+            progress.enter_substeps(1, "Parse Data")
+            # Read model data
+            for lineData in data:
+                line = stripLine(lineData)
+                line_split = line.split()
+                line_start = None
+                i = len(line_split)
+                if (i == 0):
+                    continue
+                line_start = line_split[0]
+                if (line_start in ('{')):
+                    level += 1
+                if (line_start in ('}')):
+                    level -= 1
+                    contextName = None
+
+                # Transforms
+                if (line_start == 'numTransforms' and level >= 1):
+                    transformsCount = int(line_split[1])
+
+                # Transforms
+                if (line_start == 'transform' and level >= 1):
+                    boneName = boneRenameBlender(line_split[1])
+                    posX, posY, posZ, quatX, quatZ, quatY, quatW = map(float, line_split[2:9])
+                    bonePose = (posX, posY, posZ, -quatX, -quatZ, -quatY, -quatW)
+                    bones[boneName] = bonePose
+
+
+            bpy.ops.object.mode_set(mode='OBJECT')
+            bpy.ops.object.select_all(action='DESELECT')
+            # armature.hide = False
+            armature.select_set(state=True)
+            bpy.context.view_layer.objects.active = armature
+            bpy.ops.object.mode_set(mode='POSE')
+            bpy.ops.pose.select_all(action='DESELECT')
+
+            wm = bpy.context.window_manager
+            wm.progress_begin(0, transformsCount)
+
+            r = Quaternion([0, 0, 1], pi/2)
+
+            for i, (bone_name, bone_pose) in enumerate(bones.items()):
+                wm.progress_update(i)
+                if not (bone_name in armature.data.bones):
+                    print("WARNING: Bone named " + bone_name + " not found in armature")
+                    continue
+
+                bone = armature.data.bones.get(bone_name)
+                pose = armature.pose.bones.get(bone_name)
+                if not bone:
+                    continue
+                bone.select = True
+
+                (x, y, z, qx, qz, qy, qw) = bones[bone_name]
+
+                origin = Vector([-z, x, y])
+                q = Quaternion([qw, -qy, qx, qz])
+                m = q.to_matrix().to_4x4()
+                m.translation = origin
+
+                if bone.parent:
+                    m = pose.parent.matrix @ m
+                else:
+                    origin = Vector([-x, -z, y])
+                    m.translation = origin
+                    m = m @ r.to_matrix().to_4x4()
+
+                pose.matrix = m
+
+            bpy.ops.object.mode_set(mode='OBJECT')
+            wm.progress_end()
     return {'FINISHED'}
 
 
 class ImportHaydeeDPose(Operator, ImportHelper):
     bl_idname = "haydee_importer.dpose"
     bl_label = "Import Haydee DPose (.dpose)"
+    bl_description = "Import a Haydee DPose"
     bl_options = {'REGISTER', 'UNDO'}
     filename_ext = ".dpose"
     filter_glob: StringProperty(
@@ -1405,7 +1530,8 @@ def read_outfit(operator, context, filepath):
         with ProgressReportSubstep(progReport, 4, "Importing outfit", "Finish Importing outfit") as progress:
 
             data = None
-            with open(filepath, "r") as a_file:
+            encoding = "utf-8-sig"
+            with open(filepath, "r", encoding=encoding, errors="surrogateescape") as a_file:
                 data = io.StringIO(a_file.read())
 
             line = stripLine(data.readline())
@@ -1490,8 +1616,6 @@ def read_outfit(operator, context, filepath):
                     filename = os.path.splitext(os.path.basename(meshpath))[0]
                     print('File not found:', filename, meshpath)
 
-                mesh_obj = bpy.context.view_layer.objects.active
-
                 # Create Material
                 if matrpath and os.path.exists(matrpath):
                     read_material(operator, context, matrpath)
@@ -1508,9 +1632,10 @@ def read_outfit(operator, context, filepath):
                         filename = os.path.splitext(os.path.basename(skinpath))[0]
                         print('File not found:', filename, skinpath)
 
-                obj = bpy.context.view_layer.objects.active
-                if (not armature_obj and obj.type == 'ARMATURE'):
-                    armature_obj = obj
+				#Find armature
+                active_obj = bpy.context.view_layer.objects.active
+                if (not armature_obj and active_obj and active_obj.type == 'ARMATURE'):
+                    armature_obj = active_obj
 
             for obj in imported_meshes:
                 obj.select_set(state=True)
@@ -1523,6 +1648,7 @@ def read_outfit(operator, context, filepath):
 class ImportHaydeeOutfit(Operator, ImportHelper):
     bl_idname = "haydee_importer.outfit"
     bl_label = "Import Haydee Outfit (.outfit)"
+    bl_description = "Import a Haydee Outfit (Meshes, Materials, Skins)"
     bl_options = {'REGISTER', 'UNDO'}
     filename_ext = ".outfit"
     filter_glob: StringProperty(
@@ -1604,10 +1730,6 @@ def read_skin(operator, context, filepath, armature_ob):
 
                 name = decodeText(name)
                 name = boneRenameBlender(name)
-                mat = Matrix(((f1, f5, f9,  f13),
-                              (f2, f6, f10, f14),
-                              (f3, f7, f11, f15),
-                              (f4, f8, f12, f16)))
                 mat = Matrix(((f1,  f2,  f3,  f4),
                               (f5,  f6,  f7,  f8),
                               (f9,  f10, f11, f12),
@@ -1630,7 +1752,8 @@ def read_skin(operator, context, filepath, armature_ob):
             if not armature_ob:
                 armature_ob = None
                 armature_da = bpy.data.armatures.new(ARMATURE_NAME)
-                armature_da.display_type = 'STICK'
+                #armature_da.display_type = 'STICK'
+                armature_da.show_axes = True
                 armature_ob = bpy.data.objects.new(ARMATURE_NAME, armature_da)
                 armature_ob.show_in_front = True
                 linkToActiveCollection(armature_ob)
@@ -1640,26 +1763,22 @@ def read_skin(operator, context, filepath, armature_ob):
 
             # create all Bones
             progress.enter_substeps(boneCount, "create bones")
-            # swap rows root bones
-            swap_rows = Matrix(((-1, 0,  0, 0),
-                                (0,  0, -1, 0),
-                                (0,  1,  0, 0),
-                                (0,  0,  0, 1)))
-            # swap cols root bones
-            swap_cols = Matrix(((0, 1, 0, 0),
-                                (0, 0, 1, 0),
-                                (1, 0, 0, 0),
-                                (0, 0, 0, 1)))
+            # Axis Orientation
+            axis_orient = Quaternion((1, 0, 0), -pi/2).to_matrix().to_4x4()
+            # Bone Orientation
+            r1 = Quaternion((0, 0, 1), pi/2).to_matrix().to_4x4()
+            r2 = Quaternion((0, 1, 0), -pi/2).to_matrix().to_4x4()
+            bone_orient = r1 @ r2
             for idx, b_data in enumerate(bone_data):
                 boneName = b_data['name']
                 if not armature_ob.data.edit_bones.get(boneName):
                     mat = b_data['mat']
                     editBone = armature_ob.data.edit_bones.new(boneName)
-                    editBone.tail = Vector(editBone.head) + Vector((0, 0, 10))
+                    editBone.tail = Vector(editBone.head) + Vector((0, 0, 4))
                     pos = Vector(mat.to_3x3() @ mat.row[3].xyz)
-                    mat.translation = (-pos.x, -pos.y, -pos.z)
-                    # print(boneName, mat)
-                    editBone.matrix = swap_rows @ mat @ swap_cols
+                    mat = mat.to_3x3().to_4x4()
+                    mat.translation = pos
+                    editBone.matrix = axis_orient @ mat @ bone_orient
                 progress.step()
 
             bpy.ops.object.mode_set(mode='OBJECT')
@@ -1681,6 +1800,7 @@ def read_skin(operator, context, filepath, armature_ob):
 class ImportHaydeeSkin(Operator, ImportHelper):
     bl_idname = "haydee_importer.skin"
     bl_label = "Import Haydee Skin (.skin)"
+    bl_description = "Import a Haydee Skin (Weigth Information)"
     bl_options = {'REGISTER', 'UNDO'}
     filename_ext = ".skin"
     filter_glob: StringProperty(
@@ -1707,12 +1827,12 @@ def read_material(operator, context, filepath):
 
             data = None
             bytes = min(32, os.path.getsize(filepath))
-            with open(filepath, 'rb') as a_file:
+            with open(filepath, "rb") as a_file:
                 raw = a_file.read(bytes)
 
-            encoding = 'utf-8-sig'
+            encoding = "utf-8-sig"
             if raw.startswith(codecs.BOM):
-                encoding = 'utf-16'
+                encoding = "utf-16"
 
             with open(filepath, "r", encoding=encoding) as a_file:
                 data = io.StringIO(a_file.read())
@@ -1792,6 +1912,7 @@ def read_material(operator, context, filepath):
 class ImportHaydeeMaterial(Operator, ImportHelper):
     bl_idname = "haydee_importer.material"
     bl_label = "Import Haydee Material (.mtl)"
+    bl_description = "Import a Haydee Material to active Object"
     bl_options = {'REGISTER', 'UNDO'}
     filename_ext = ".mtl"
     filter_glob: StringProperty(
