@@ -116,7 +116,7 @@ def write_dpose(operator, context, filepath):
             d(-head.x), d(head.y), d(-head.z),
             d(q.x), d(-q.w), d(q.y), d(q.z)))
 
-    f.write("\t}\n")
+    f.write("}\n")
     f.close()
     return {'FINISHED'}
 
