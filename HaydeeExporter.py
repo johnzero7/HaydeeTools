@@ -16,8 +16,7 @@ from bpy_extras.wm_utils.progress_report import (
 from bpy_extras.io_utils import ExportHelper
 from bpy.props import StringProperty, BoolProperty, EnumProperty
 from bpy.types import Operator
-
-from mathutils import *
+from mathutils import Quaternion, Vector
 from math import pi
 
 
@@ -35,7 +34,7 @@ def write_dskel(operator, context, filepath):
     f = open(filepath, 'w', encoding='utf-8')
     f.write("HD_DATA_TXT 300\n\n")
     f.write("skeleton %d\n{\n" % len(bones))
-    r = Quaternion([0, 0, 1], -pi/2)
+    r = Quaternion([0, 0, 1], -pi / 2)
     for bone in bones:
         head = bone.head_local.xzy
         q = bone.matrix_local.to_quaternion()
@@ -73,10 +72,10 @@ class ExportHaydeeDSkel(Operator, ExportHelper):
     bl_options = {'REGISTER'}
     filename_ext = ".dskel"
     filter_glob: StringProperty(
-            default="*.dskel",
-            options={'HIDDEN'},
-            maxlen=255,  # Max internal buffer length, longer would be clamped.
-            )
+        default="*.dskel",
+        options={'HIDDEN'},
+        maxlen=255,  # Max internal buffer length, longer would be clamped.
+    )
 
     def invoke(self, context, event):
         context.window_manager.fileselect_add(self)
@@ -100,7 +99,7 @@ def write_dpose(operator, context, filepath):
     f = open(filepath, 'w', encoding='utf-8')
     f.write("HD_DATA_TXT 300\n\n")
     f.write("pose\n{\n\tnumTransforms %d;\n" % len(bones))
-    r = Quaternion([0, 0, 1], pi/2)
+    r = Quaternion([0, 0, 1], pi / 2)
     for bone in bones:
         head = bone.head.xzy
         q = bone.matrix.to_quaternion()
@@ -127,10 +126,10 @@ class ExportHaydeeDPose(Operator, ExportHelper):
     bl_options = {'REGISTER'}
     filename_ext = ".dpose"
     filter_glob: StringProperty(
-            default="*.dpose",
-            options={'HIDDEN'},
-            maxlen=255,  # Max internal buffer length, longer would be clamped.
-            )
+        default="*.dpose",
+        options={'HIDDEN'},
+        maxlen=255,  # Max internal buffer length, longer would be clamped.
+    )
 
     def invoke(self, context, event):
         context.window_manager.fileselect_add(self)
@@ -159,7 +158,7 @@ def write_dmot(operator, context, filepath):
         name = boneRenameHaydee(bone.name)
         lines[name] = []
 
-    r = Quaternion([0, 0, 1], pi/2)
+    r = Quaternion([0, 0, 1], pi / 2)
     wm.progress_begin(0, keyframeCount)
     for frame in range(keyframeCount):
         wm.progress_update(frame)
@@ -205,10 +204,10 @@ class ExportHaydeeDMotion(Operator, ExportHelper):
     bl_options = {'REGISTER'}
     filename_ext = ".dmot"
     filter_glob: StringProperty(
-            default="*.dmot",
-            options={'HIDDEN'},
-            maxlen=255,  # Max internal buffer length, longer would be clamped.
-            )
+        default="*.dmot",
+        options={'HIDDEN'},
+        maxlen=255,  # Max internal buffer length, longer would be clamped.
+    )
 
     def invoke(self, context, event):
         context.window_manager.fileselect_add(self)
@@ -285,7 +284,7 @@ def write_dmesh(operator, context, filepath, export_skeleton,
             new_mesh_uvs = []
             if SELECTED_MATERIAL == '__ALL__':
                 for n in range(len(vertices)):
-                    vertex_map[n] = base_vertex_index+n
+                    vertex_map[n] = base_vertex_index + n
                 if uvs_data is not None:
                     for n, uv in enumerate(uvs_data):
                         uv_pos = uv.uv
@@ -480,7 +479,7 @@ def write_dmesh(operator, context, filepath, export_skeleton,
                             joints_output.append("\tjoints %d\n\t{\n" % len(bones))
                             bone_indexes = {}
                             bone_index = 0
-                            r = Quaternion([0, 0, 1], -pi/2)
+                            r = Quaternion([0, 0, 1], -pi / 2)
                             for bone in bones:
                                 head = mat @ bone.head.xyz
                                 q = bone.matrix_local.to_quaternion()
@@ -622,43 +621,43 @@ class ExportHaydeeDMesh(Operator, ExportHelper):
     bl_options = {'REGISTER'}
     filename_ext = ".dmesh"
     filter_glob: StringProperty(
-            default="*.dmesh",
-            options={'HIDDEN'},
-            maxlen=255,  # Max internal buffer length, longer would be clamped.
-            )
+        default="*.dmesh",
+        options={'HIDDEN'},
+        maxlen=255,  # Max internal buffer length, longer would be clamped.
+    )
 
     # List of operator properties, the attributes will be assigned
     # to the class instance from the operator settings before calling.
     selected_only: BoolProperty(
-            name="Selected only",
-            description="Export only selected objects (if nothing is selected, full scene will be exported regardless of this setting)",
-            default=True,
-            )
+        name="Selected only",
+        description="Export only selected objects (if nothing is selected, full scene will be exported regardless of this setting)",
+        default=True,
+    )
     separate_files: BoolProperty(
-            name="Export to Separate Files",
-            description="Export each object to a separate file",
-            default=False,
-            )
+        name="Export to Separate Files",
+        description="Export each object to a separate file",
+        default=False,
+    )
     ignore_hidden: BoolProperty(
-            name="Ignore hidden",
-            description="Ignore hidden objects",
-            default=True,
-            )
+        name="Ignore hidden",
+        description="Ignore hidden objects",
+        default=True,
+    )
     apply_modifiers: BoolProperty(
-            name="Apply modifiers",
-            description="Apply modifiers before exporting",
-            default=True,
-            )
+        name="Apply modifiers",
+        description="Apply modifiers before exporting",
+        default=True,
+    )
     export_skeleton: BoolProperty(
-            name="Export skeleton",
-            description="Export skeleton and vertex weights",
-            default=True,
-            )
+        name="Export skeleton",
+        description="Export skeleton and vertex weights",
+        default=True,
+    )
     material: EnumProperty(
-            name="Material",
-            description="Material to export",
-            items=materials_list
-            )
+        name="Material",
+        description="Material to export",
+        items=materials_list
+    )
 
     def invoke(self, context, event):
         context.window_manager.fileselect_add(self)

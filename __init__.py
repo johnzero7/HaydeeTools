@@ -10,7 +10,7 @@ bl_info = {
     "location": "File > Import-Export > HaydeeTools",
     "description": "Import-Export scripts for Haydee",
     "warning": "",
-    "wiki_url":    "https://github.com/johnzero7/HaydeeTools",
+    "wiki_url": "https://github.com/johnzero7/HaydeeTools",
     "tracker_url": "https://github.com/johnzero7/HaydeeTools/issues",
     "category": "Import-Export",
 }
@@ -47,7 +47,9 @@ import bpy
 
 
 class UpdaterPreferences(bpy.types.AddonPreferences):
+
     bl_idname = __package__
+
     # addon updater preferences from `__init__`, be sure to copy all of them
     auto_check_update: bpy.props.BoolProperty(
         name="Auto-check for Update",

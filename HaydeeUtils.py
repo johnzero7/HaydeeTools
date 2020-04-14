@@ -118,7 +118,7 @@ def apply_pose(selected, active):
         bpy.context.view_layer.objects.active = obj
         index = obj.modifiers.find(modif.name)
         bpy.ops.object.modifier_copy(modifier=modif.name)
-        new_modif_name = obj.modifiers[index+1].name
+        new_modif_name = obj.modifiers[index + 1].name
         bpy.ops.object.modifier_apply(apply_as='DATA', modifier=new_modif_name)
         modif.object = active
     bpy.context.view_layer.objects.active = active

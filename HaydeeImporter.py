@@ -19,8 +19,7 @@ from bpy_extras.wm_utils.progress_report import (
 from bpy_extras.io_utils import ImportHelper
 from bpy.props import StringProperty, BoolProperty, EnumProperty
 from bpy.types import Operator
-
-from mathutils import *
+from mathutils import Quaternion, Vector, Matrix
 from math import pi
 
 ARMATURE_NAME = 'Skeleton'
@@ -31,10 +30,10 @@ SWAP_ROW_SKEL = Matrix(((0, 0, 1, 0),
                         (0, 1, 0, 0),
                         (0, 0, 0, 1)))
 # Swap matrix cols
-SWAP_COL_SKEL = Matrix(((1,  0,  0, 0),
-                        (0,  0, -1, 0),
-                        (0, -1,  0, 0),
-                        (0,  0,  0, 1)))
+SWAP_COL_SKEL = Matrix(((1, 0, 0, 0),
+                        (0, 0, -1, 0),
+                        (0, -1, 0, 0),
+                        (0, 0, 0, 1)))
 
 
 # Vector from Haydee format to Blender
@@ -74,7 +73,7 @@ def setActiveCollection(collName):
 
 
 # --------------------------------------------------------------------------------
-#  .skel importer
+# .skel importer
 # --------------------------------------------------------------------------------
 
 def recurBonesOrigin(progress, parentBone, jointNames, mats):
@@ -84,14 +83,14 @@ def recurBonesOrigin(progress, parentBone, jointNames, mats):
             child_mat = mats[idx]
             # INV row
             x1 = Matrix(((0, 0, -1, 0),
-                         (1, 0,  0, 0),
-                         (0, 1,  0, 0),
-                         (0, 0,  0, 1)))
+                         (1, 0, 0, 0),
+                         (0, 1, 0, 0),
+                         (0, 0, 0, 1)))
             # INV col
-            x2 = Matrix(((0,  1, 0, 0),
-                         (0,  0, 1, 0),
+            x2 = Matrix(((0, 1, 0, 0),
+                         (0, 0, 1, 0),
                          (-1, 0, 0, 0),
-                         (0,  0, 0, 1)))
+                         (0, 0, 0, 1)))
 
             childBone.matrix = parentBone.matrix @ (x1 @ child_mat @ x2)
             recurBonesOrigin(progress, childBone, jointNames, mats)
@@ -142,16 +141,16 @@ def read_skel(operator, context, filepath):
             for n in range(boneCount):
                 offset = headerSize + (BONE_SIZE * n)
                 (name,
-                    f1,  f2,  f3,  f4,
-                    f5,  f6,  f7,  f8,
-                    f9,  f10, f11, f12,
+                    f1, f2, f3, f4,
+                    f5, f6, f7, f8,
+                    f9, f10, f11, f12,
                     f13, f14, f15, f16,
                     parent, width, height, lenght, flags) = \
                     struct.unpack('32s16fi3fi', data[offset:offset + BONE_SIZE])
                 name = decodeText(name)
                 name = boneRenameBlender(name)
 
-                mat = Matrix(((f1, f5, f9,  f13),
+                mat = Matrix(((f1, f5, f9, f13),
                               (f2, f6, f10, f14),
                               (f3, f7, f11, f15),
                               (f4, f8, f12, f16)))
@@ -163,37 +162,40 @@ def read_skel(operator, context, filepath):
             for n in range(joints_count):
                 offset = headerSize + (BONE_SIZE * boneCount) + (JOINT_SIZE + n)
                 (
-                    index,  parent,
-                    f1,  f2,  f3,  f4,
-                    f5,  f6,  f7,  f8,
-                    f9,  f10, f11, f12,
+                    index, parent,
+                    f1, f2, f3, f4,
+                    f5, f6, f7, f8,
+                    f9, f10, f11, f12,
                     f13, f14, f15, f16,
                     twistX, twistY, swingX, swingY) = \
                     struct.unpack('18f4f', data[offset:offset + JOINT_SIZE])
 
-                mat = Matrix(((f1, f5, f9,  f13),
-                              (f2, f6, f10, f14),
-                              (f3, f7, f11, f15),
-                              (f4, f8, f12, f16)))
+                mat = Matrix((
+                            (f1, f5, f9, f13),
+                            (f2, f6, f10, f14),
+                            (f3, f7, f11, f15),
+                            (f4, f8, f12, f16)
+                ))
 
                 joint_data[index] = {
-                        'parent': parent,
-                        'twistX': twistX, 'twistY': twistY,
-                        'swingX': swingX, 'swingY': swingY,
-                        'matrix': mat}
+                    'parent': parent,
+                    'twistX': twistX, 'twistY': twistY,
+                    'swingX': swingX, 'swingY': swingY,
+                    'matrix': mat
+                }
 
             for n in range(slots_count):
                 offset = headerSize + (BONE_SIZE * boneCount) + (JOINT_SIZE * joints_count) + (SLOTS_SIZE * n)
 
                 (name,
-                    f1,  f2,  f3,  f4,
-                    f5,  f6,  f7,  f8,
-                    f9,  f10, f11, f12,
+                    f1, f2, f3, f4,
+                    f5, f6, f7, f8,
+                    f9, f10, f11, f12,
                     f13, f14, f15, f16,
                     index) = \
                     struct.unpack('32s16f1f', data[offset:offset + SLOTS_SIZE])
                 name = decodeText(name)
-                mat = Matrix(((f1, f5, f9,  f13),
+                mat = Matrix(((f1, f5, f9, f13),
                               (f2, f6, f10, f14),
                               (f3, f7, f11, f15),
                               (f4, f8, f12, f16)))
@@ -217,7 +219,7 @@ def read_skel(operator, context, filepath):
                 print('Importing Armature', str(boneCount), 'bones')
 
                 armature_da = bpy.data.armatures.new(ARMATURE_NAME)
-                #armature_da.display_type = 'STICK'
+                # armature_da.display_type = 'STICK'
                 armature_ob = bpy.data.objects.new(ARMATURE_NAME, armature_da)
                 armature_ob.show_in_front = True
 
@@ -252,10 +254,10 @@ def read_skel(operator, context, filepath):
                 rootBones = [rootBone for rootBone in armature_da.edit_bones if rootBone.parent is None]
 
                 # swap rows root bones
-                swap_rows = Matrix(((-1, 0,  0, 0),
-                                    (0,  0, -1, 0),
-                                    (0,  1,  0, 0),
-                                    (0,  0,  0, 1)))
+                swap_rows = Matrix(((-1, 0, 0, 0),
+                                    (0, 0, -1, 0),
+                                    (0, 1, 0, 0),
+                                    (0, 0, 0, 1)))
                 # swap cols root bones
                 swap_cols = Matrix(((0, 1, 0, 0),
                                     (0, 0, 1, 0),
@@ -392,19 +394,19 @@ def build_driver(driver, expression, component, source_bone, target_bone):
     var.type = 'SINGLE_PROP'
     var.name = 'mls'
     var.targets[0].id = rot_comp.id_data
-    var.targets[0].data_path = 'data.bones["'+target_bone+'"].matrix_local'
+    var.targets[0].data_path = 'data.bones["' + target_bone + '"].matrix_local'
 
     var = rot_comp.driver.variables.new()
     var.type = 'SINGLE_PROP'
     var.name = 'mld'
     var.targets[0].id = rot_comp.id_data
-    var.targets[0].data_path = 'data.bones["'+source_bone+'"].matrix_local'
+    var.targets[0].data_path = 'data.bones["' + source_bone + '"].matrix_local'
 
     var = rot_comp.driver.variables.new()
     var.type = 'SINGLE_PROP'
     var.name = 'mbs'
     var.targets[0].id = rot_comp.id_data
-    var.targets[0].data_path = 'pose.bones["'+target_bone+'"].matrix_basis'
+    var.targets[0].data_path = 'pose.bones["' + target_bone + '"].matrix_basis'
 
 
 class ImportHaydeeSkel(Operator, ImportHelper):
@@ -414,17 +416,17 @@ class ImportHaydeeSkel(Operator, ImportHelper):
     bl_options = {'REGISTER', 'UNDO'}
     filename_ext = ".skel"
     filter_glob: StringProperty(
-            default="*.skel",
-            options={'HIDDEN'},
-            maxlen=255,  # Max internal buffer length, longer would be clamped.
-            )
+        default="*.skel",
+        options={'HIDDEN'},
+        maxlen=255,  # Max internal buffer length, longer would be clamped.
+    )
 
     def execute(self, context):
         return read_skel(self, context, self.filepath)
 
 
 # --------------------------------------------------------------------------------
-#  .dskel importer
+# .dskel importer
 # --------------------------------------------------------------------------------
 
 def recurBonesOriginDSkel(progress, parentBone, jointNames, jointAxis, jointOrigin):
@@ -496,7 +498,7 @@ def read_dskel(operator, context, filepath):
                     jointNames.append(jointName)
                     jointParents.append(None)
                 if (line_start == 'parent' and level >= 2):
-                    jointParents[len(jointParents)-1] = line_split[1]
+                    jointParents[len(jointParents) - 1] = line_split[1]
                 if (line_start == 'origin' and level >= 2):
                     readVec(line_split, jointOrigin, 3, float)
                 if (line_start == 'axis' and level >= 2):
@@ -528,7 +530,7 @@ def read_dskel(operator, context, filepath):
                 print('Importing Armature', str(boneCount), 'bones')
 
                 armature_da = bpy.data.armatures.new(ARMATURE_NAME)
-                #armature_da.display_type = 'STICK'
+                # armature_da.display_type = 'STICK'
                 armature_ob = bpy.data.objects.new(ARMATURE_NAME, armature_da)
                 armature_ob.show_in_front = True
 
@@ -598,17 +600,17 @@ class ImportHaydeeDSkel(Operator, ImportHelper):
     bl_options = {'REGISTER', 'UNDO'}
     filename_ext = ".dskel"
     filter_glob: StringProperty(
-            default="*.dskel",
-            options={'HIDDEN'},
-            maxlen=255,  # Max internal buffer length, longer would be clamped.
-            )
+        default="*.dskel",
+        options={'HIDDEN'},
+        maxlen=255,  # Max internal buffer length, longer would be clamped.
+    )
 
     def execute(self, context):
         return read_dskel(self, context, self.filepath)
 
 
 # --------------------------------------------------------------------------------
-#  .dmesh importer
+# .dmesh importer
 # --------------------------------------------------------------------------------
 
 def recurBonesOriginMesh(progress, parentBone, jointNames, jointAxis, jointOrigin):
@@ -620,9 +622,9 @@ def recurBonesOriginMesh(progress, parentBone, jointNames, jointAxis, jointOrigi
 
             # INV row
             x1 = Matrix(((-1, 0, 0, 0),
-                        (0,  0, 1, 0),
+                        (0, 0, 1, 0),
                         (0, -1, 0, 0),
-                        (0,  0, 0, 1)))
+                        (0, 0, 0, 1)))
             # INV col
             x2 = Matrix(((1, 0, 0, 0),
                         (0, 0, 1, 0),
@@ -766,7 +768,7 @@ def read_dmesh(operator, context, filepath):
                     jointNames.append(jointName)
                     jointParents.append(None)
                 if (line_start == 'parent' and level >= 3):
-                    jointParents[len(jointParents)-1] = line.split(' ', 1)[1]
+                    jointParents[len(jointParents) - 1] = line.split(' ', 1)[1]
                 if (line_start == 'origin' and level >= 3):
                     readVec(line_split, jointOrigin, 3, float)
                 if (line_start == 'axis' and level >= 3):
@@ -793,7 +795,7 @@ def read_dmesh(operator, context, filepath):
                 print('Importing Armature', str(boneCount), 'bones')
 
                 armature_da = bpy.data.armatures.new(ARMATURE_NAME)
-                #armature_da.display_type = 'STICK'
+                # armature_da.display_type = 'STICK'
                 armature_ob = bpy.data.objects.new(ARMATURE_NAME, armature_da)
                 armature_ob.show_in_front = True
 
@@ -985,10 +987,10 @@ class ImportHaydeeDMesh(Operator, ImportHelper):
     bl_options = {'REGISTER', 'UNDO'}
     filename_ext = ".dmesh"
     filter_glob: StringProperty(
-            default="*.dmesh",
-            options={'HIDDEN'},
-            maxlen=255,  # Max internal buffer length, longer would be clamped.
-            )
+        default="*.dmesh",
+        options={'HIDDEN'},
+        maxlen=255,  # Max internal buffer length, longer would be clamped.
+    )
 
     def invoke(self, context, event):
         context.window_manager.fileselect_add(self)
@@ -999,7 +1001,7 @@ class ImportHaydeeDMesh(Operator, ImportHelper):
 
 
 # --------------------------------------------------------------------------------
-#  .mesh importer
+# .mesh importer
 # --------------------------------------------------------------------------------
 
 def read_mesh(operator, context, filepath, outfitName):
@@ -1054,12 +1056,12 @@ def read_mesh(operator, context, filepath, outfitName):
             for n in range(vertCount):
                 offset = delta + (VERT_SIZE * n)
                 (
-                        x, y, z,
-                        u, v,
-                        vcolorR, vcolorG, vcolorB, vcolorA,
-                        normX, normY, normZ,
-                        tanX, tanY, tanZ,
-                        bitanX, bitanY, bitanZ) = \
+                    x, y, z,
+                    u, v,
+                    vcolorR, vcolorG, vcolorB, vcolorA,
+                    normX, normY, normZ,
+                    tanX, tanY, tanZ,
+                    bitanX, bitanY, bitanZ) = \
                     struct.unpack('3f2f4B9f', data[offset:offset + VERT_SIZE])
                 vert = Vector((-x, -z, y))
                 uv = Vector((u, v))
@@ -1122,10 +1124,10 @@ class ImportHaydeeMesh(Operator, ImportHelper):
     bl_options = {'REGISTER', 'UNDO'}
     filename_ext = ".mesh"
     filter_glob: StringProperty(
-            default="*.mesh",
-            options={'HIDDEN'},
-            maxlen=255,  # Max internal buffer length, longer would be clamped.
-            )
+        default="*.mesh",
+        options={'HIDDEN'},
+        maxlen=255,  # Max internal buffer length, longer would be clamped.
+    )
 
     def invoke(self, context, event):
         context.window_manager.fileselect_add(self)
@@ -1136,7 +1138,7 @@ class ImportHaydeeMesh(Operator, ImportHelper):
 
 
 # --------------------------------------------------------------------------------
-#  .motion importer
+# .motion importer
 # --------------------------------------------------------------------------------
 
 def read_motion(operator, context, filepath):
@@ -1170,7 +1172,7 @@ def read_motion(operator, context, filepath):
         name = boneRenameBlender(name)
 
         keys = []
-        for k in range(firstKey, firstKey+frameCount):
+        for k in range(firstKey, firstKey + frameCount):
             offset = SIGNATURE_SIZE + KEY_SIZE * k
             (x, y, z, qx, qz, qy, qw) = struct.unpack('3f4f', data[offset:offset + KEY_SIZE])
             keys.append((x, y, z, qx, qz, qy, qw))
@@ -1178,8 +1180,8 @@ def read_motion(operator, context, filepath):
         boneNames.append(name)
 
     boneNames.reverse()
-#    for name in sorted(boneNames):
-#       print("- %s" % name)
+# for name in sorted(boneNames):
+# print("- %s" % name)
 
     bpy.ops.object.mode_set(mode='OBJECT')
     bpy.ops.object.select_all(action='DESELECT')
@@ -1191,14 +1193,14 @@ def read_motion(operator, context, filepath):
     wm = bpy.context.window_manager
     wm.progress_begin(0, frameCount)
 
-    r = Quaternion([0, 0, 1], pi/2)
+    r = Quaternion([0, 0, 1], pi / 2)
 
     context.scene.frame_start = 1
     context.scene.frame_end = frameCount
     for pose in context.selected_pose_bones:
         pose.bone.select = False
-    for frame in range(1, frameCount+1):
-        wm.progress_update(frame-1)
+    for frame in range(1, frameCount + 1):
+        wm.progress_update(frame - 1)
         context.scene.frame_current = frame
         for name in boneNames:
             bone_name = name
@@ -1212,7 +1214,7 @@ def read_motion(operator, context, filepath):
                 continue
             bone.select = True
 
-            (x, y, z, qx, qz, qy, qw) = bones[bone_name][frame-1]
+            (x, y, z, qx, qz, qy, qw) = bones[bone_name][frame - 1]
 
             origin = Vector([-z, x, y])
             q = Quaternion([qw, -qy, qx, qz])
@@ -1250,17 +1252,17 @@ class ImportHaydeeMotion(Operator, ImportHelper):
     bl_options = {'REGISTER', 'UNDO'}
     filename_ext = ".motion"
     filter_glob: StringProperty(
-            default="*.motion",
-            options={'HIDDEN'},
-            maxlen=255,  # Max internal buffer length, longer would be clamped.
-            )
+        default="*.motion",
+        options={'HIDDEN'},
+        maxlen=255,  # Max internal buffer length, longer would be clamped.
+    )
 
     def execute(self, context):
         return read_motion(self, context, self.filepath)
 
 
 # --------------------------------------------------------------------------------
-#  .dmot importer
+# .dmot importer
 # --------------------------------------------------------------------------------
 
 def read_dmotion(operator, context, filepath):
@@ -1295,7 +1297,6 @@ def read_dmotion(operator, context, filepath):
                 operator.report({'ERROR'}, "Unrecognized file format")
                 return {'FINISHED'}
 
-
             contextName = None
             bones = {}
             level = 0
@@ -1304,7 +1305,6 @@ def read_dmotion(operator, context, filepath):
             frameRate = None
             track = None
             boneName = None
-
 
             # steps = len(data.getvalue().splitlines()) - 1
             progress.enter_substeps(1, "Parse Data")
@@ -1343,7 +1343,6 @@ def read_dmotion(operator, context, filepath):
                         frame = len(bones[boneName])
                         bones[boneName].append(bonePose)
 
-
             bpy.ops.object.mode_set(mode='OBJECT')
             bpy.ops.object.select_all(action='DESELECT')
             # armature.hide = False
@@ -1354,14 +1353,14 @@ def read_dmotion(operator, context, filepath):
             wm = bpy.context.window_manager
             wm.progress_begin(0, numFrames)
 
-            r = Quaternion([0, 0, 1], pi/2)
+            r = Quaternion([0, 0, 1], pi / 2)
 
             context.scene.frame_start = 1
             context.scene.frame_end = numFrames
             for pose in context.selected_pose_bones:
                 pose.bone.select = False
-            for frame in range(1, numFrames+1):
-                wm.progress_update(frame-1)
+            for frame in range(1, numFrames + 1):
+                wm.progress_update(frame - 1)
                 context.scene.frame_current = frame
                 for name in bones.keys():
                     bone_name = name
@@ -1375,7 +1374,7 @@ def read_dmotion(operator, context, filepath):
                         continue
                     bone.select = True
 
-                    (x, y, z, qx, qz, qy, qw) = bones[bone_name][frame-1]
+                    (x, y, z, qx, qz, qy, qw) = bones[bone_name][frame - 1]
 
                     origin = Vector([-z, x, y])
                     q = Quaternion([qw, -qy, qx, qz])
@@ -1413,17 +1412,17 @@ class ImportHaydeeDMotion(Operator, ImportHelper):
     bl_options = {'REGISTER', 'UNDO'}
     filename_ext = ".dmot"
     filter_glob: StringProperty(
-            default="*.dmot",
-            options={'HIDDEN'},
-            maxlen=255,  # Max internal buffer length, longer would be clamped.
-            )
+        default="*.dmot",
+        options={'HIDDEN'},
+        maxlen=255,  # Max internal buffer length, longer would be clamped.
+    )
 
     def execute(self, context):
         return read_dmotion(self, context, self.filepath)
 
 
 # --------------------------------------------------------------------------------
-#  .pose importer
+# .pose importer
 # --------------------------------------------------------------------------------
 
 def read_pose(operator, context, filepath):
@@ -1474,7 +1473,7 @@ def read_pose(operator, context, filepath):
     wm = bpy.context.window_manager
     wm.progress_begin(0, boneCount)
 
-    r = Quaternion([0, 0, 1], pi/2)
+    r = Quaternion([0, 0, 1], pi / 2)
 
     for i, bone_name in enumerate(boneNames):
         wm.progress_update(i)
@@ -1516,17 +1515,17 @@ class ImportHaydeePose(Operator, ImportHelper):
     bl_options = {'REGISTER', 'UNDO'}
     filename_ext = ".pose"
     filter_glob: StringProperty(
-            default="*.pose",
-            options={'HIDDEN'},
-            maxlen=255,  # Max internal buffer length, longer would be clamped.
-            )
+        default="*.pose",
+        options={'HIDDEN'},
+        maxlen=255,  # Max internal buffer length, longer would be clamped.
+    )
 
     def execute(self, context):
         return read_pose(self, context, self.filepath)
 
 
 # --------------------------------------------------------------------------------
-#  .dpose importer
+# .dpose importer
 # --------------------------------------------------------------------------------
 
 def read_dpose(operator, context, filepath):
@@ -1561,10 +1560,9 @@ def read_dpose(operator, context, filepath):
                 operator.report({'ERROR'}, "Unrecognized file format")
                 return {'FINISHED'}
 
-
             contextName = None
             bones = {}
-            transformsCount= None
+            transformsCount = None
             level = 0
 
             # steps = len(data.getvalue().splitlines()) - 1
@@ -1595,7 +1593,6 @@ def read_dpose(operator, context, filepath):
                     bonePose = (posX, posY, posZ, -quatX, -quatZ, -quatY, -quatW)
                     bones[boneName] = bonePose
 
-
             bpy.ops.object.mode_set(mode='OBJECT')
             bpy.ops.object.select_all(action='DESELECT')
             # armature.hide = False
@@ -1607,7 +1604,7 @@ def read_dpose(operator, context, filepath):
             wm = bpy.context.window_manager
             wm.progress_begin(0, transformsCount)
 
-            r = Quaternion([0, 0, 1], pi/2)
+            r = Quaternion([0, 0, 1], pi / 2)
 
             for i, (bone_name, bone_pose) in enumerate(bones.items()):
                 wm.progress_update(i)
@@ -1649,17 +1646,17 @@ class ImportHaydeeDPose(Operator, ImportHelper):
     bl_options = {'REGISTER', 'UNDO'}
     filename_ext = ".dpose"
     filter_glob: StringProperty(
-            default="*.dpose",
-            options={'HIDDEN'},
-            maxlen=255,  # Max internal buffer length, longer would be clamped.
-            )
+        default="*.dpose",
+        options={'HIDDEN'},
+        maxlen=255,  # Max internal buffer length, longer would be clamped.
+    )
 
     def execute(self, context):
         return read_dpose(self, context, self.filepath)
 
 
 # --------------------------------------------------------------------------------
-#  .outfit importer
+# .outfit importer
 # --------------------------------------------------------------------------------
 
 # profile
@@ -1717,9 +1714,9 @@ def read_outfit(operator, context, filepath):
                     skinFiles.append(None)
                     materialFiles.append(None)
                 if (line_start == 'skin' and level == 2):
-                    skinFiles[len(meshFiles)-1] = line_split[1].replace('"', '')
+                    skinFiles[len(meshFiles) - 1] = line_split[1].replace('"', '')
                 if (line_start == 'material' and level == 2):
-                    materialFiles[len(meshFiles)-1] = line_split[1].replace('"', '')
+                    materialFiles[len(meshFiles) - 1] = line_split[1].replace('"', '')
 
             combo = []
             for idx in range(len(meshFiles)):
@@ -1771,7 +1768,7 @@ def read_outfit(operator, context, filepath):
                         filename = os.path.splitext(os.path.basename(skinpath))[0]
                         print('File not found:', filename, skinpath)
 
-				#Find armature
+                # Find armature
                 active_obj = bpy.context.view_layer.objects.active
                 if (not armature_obj and active_obj and active_obj.type == 'ARMATURE'):
                     armature_obj = active_obj
@@ -1791,17 +1788,17 @@ class ImportHaydeeOutfit(Operator, ImportHelper):
     bl_options = {'REGISTER', 'UNDO'}
     filename_ext = ".outfit"
     filter_glob: StringProperty(
-            default="*.outfit",
-            options={'HIDDEN'},
-            maxlen=255,  # Max internal buffer length, longer would be clamped.
-            )
+        default="*.outfit",
+        options={'HIDDEN'},
+        maxlen=255,  # Max internal buffer length, longer would be clamped.
+    )
 
     def execute(self, context):
         return read_outfit(self, context, self.filepath)
 
 
 # --------------------------------------------------------------------------------
-#  .skin importer
+# .skin importer
 # --------------------------------------------------------------------------------
 
 def read_skin(operator, context, filepath, armature_ob):
@@ -1860,18 +1857,18 @@ def read_skin(operator, context, filepath, armature_ob):
             for n in range(boneCount):
                 offset = delta + (BONE_SIZE * n)
                 (name,
-                    f1,  f2,  f3,  f4,
-                    f5,  f6,  f7,  f8,
-                    f9,  f10, f11, f12,
+                    f1, f2, f3, f4,
+                    f5, f6, f7, f8,
+                    f9, f10, f11, f12,
                     f13, f14, f15, f16,
                     vx, vy, vz, vw) = \
                     struct.unpack('32s16f4f', data[offset:offset + BONE_SIZE])
 
                 name = decodeText(name)
                 name = boneRenameBlender(name)
-                mat = Matrix(((f1,  f2,  f3,  f4),
-                              (f5,  f6,  f7,  f8),
-                              (f9,  f10, f11, f12),
+                mat = Matrix(((f1, f2, f3, f4),
+                              (f5, f6, f7, f8),
+                              (f9, f10, f11, f12),
                               (f13, f14, f15, f16)))
                 vec = Vector((vx, vy, vz, vw))
                 bone_data.append({'name': name, 'mat': mat, 'vec': vec})
@@ -1891,7 +1888,7 @@ def read_skin(operator, context, filepath, armature_ob):
             if not armature_ob:
                 armature_ob = None
                 armature_da = bpy.data.armatures.new(ARMATURE_NAME)
-                #armature_da.display_type = 'STICK'
+                # armature_da.display_type = 'STICK'
                 armature_da.show_axes = True
                 armature_ob = bpy.data.objects.new(ARMATURE_NAME, armature_da)
                 armature_ob.show_in_front = True
@@ -1903,10 +1900,10 @@ def read_skin(operator, context, filepath, armature_ob):
             # create all Bones
             progress.enter_substeps(boneCount, "create bones")
             # Axis Orientation
-            axis_orient = Quaternion((1, 0, 0), -pi/2).to_matrix().to_4x4()
+            axis_orient = Quaternion((1, 0, 0), -pi / 2).to_matrix().to_4x4()
             # Bone Orientation
-            r1 = Quaternion((0, 0, 1), pi/2).to_matrix().to_4x4()
-            r2 = Quaternion((0, 1, 0), -pi/2).to_matrix().to_4x4()
+            r1 = Quaternion((0, 0, 1), pi / 2).to_matrix().to_4x4()
+            r2 = Quaternion((0, 1, 0), -pi / 2).to_matrix().to_4x4()
             bone_orient = r1 @ r2
             for idx, b_data in enumerate(bone_data):
                 boneName = b_data['name']
@@ -1943,17 +1940,17 @@ class ImportHaydeeSkin(Operator, ImportHelper):
     bl_options = {'REGISTER', 'UNDO'}
     filename_ext = ".skin"
     filter_glob: StringProperty(
-            default="*.skin",
-            options={'HIDDEN'},
-            maxlen=255,  # Max internal buffer length, longer would be clamped.
-            )
+        default="*.skin",
+        options={'HIDDEN'},
+        maxlen=255,  # Max internal buffer length, longer would be clamped.
+    )
 
     def execute(self, context):
         return read_skin(self, context, self.filepath, None)
 
 
 # --------------------------------------------------------------------------------
-#  .material importer
+# .material importer
 # --------------------------------------------------------------------------------
 def read_material(operator, context, filepath):
     print('Material:', filepath)
@@ -2055,10 +2052,10 @@ class ImportHaydeeMaterial(Operator, ImportHelper):
     bl_options = {'REGISTER', 'UNDO'}
     filename_ext = ".mtl"
     filter_glob: StringProperty(
-            default="*.mtl",
-            options={'HIDDEN'},
-            maxlen=255,  # Max internal buffer length, longer would be clamped.
-            )
+        default="*.mtl",
+        options={'HIDDEN'},
+        maxlen=255,  # Max internal buffer length, longer would be clamped.
+    )
 
     def execute(self, context):
         return read_material(self, context, self.filepath)
@@ -2081,7 +2078,7 @@ def haydeeFilepath(mainpath, filepath):
 
 
 # --------------------------------------------------------------------------------
-#  Initialization & menu
+# Initialization & menu
 # --------------------------------------------------------------------------------
 class HaydeeImportSubMenu(bpy.types.Menu):
     bl_idname = "OBJECT_MT_haydee_import_submenu"
@@ -2108,7 +2105,7 @@ def menu_func_import(self, context):
 
 
 # --------------------------------------------------------------------------------
-#  Register
+# Register
 # --------------------------------------------------------------------------------
 def register():
     bpy.types.TOPBAR_MT_file_import.append(menu_func_import)
