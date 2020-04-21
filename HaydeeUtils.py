@@ -45,17 +45,19 @@ def d(number):
 def find_armature(operator, context):
     armature = None
     checking = "ARMATURE"
-    list = context.selected_objects
-    if list:
-        list = context.scene.objects
+    obj_list = [context.active_object,] if context.active_object.type == checking else None
+    if not obj_list:
+        obj_list = context.selected_objects
+    if not obj_list:
+        obj_list = context.scene.objects
     while True:
-        for ob in list:
+        for ob in obj_list:
             if ob.type == checking:
                 if checking == "MESH":
-                    for modifier in ob.modifiers:
-                        if modifier.type == 'ARMATURE':
-                            ob = modifier.object
-                            break
+                    armature = ob.find_armature()
+                    if armature:
+                        ob = armature
+                        break
                     if ob.type != 'ARMATURE':
                         continue
                 if armature is not None and armature != ob:
@@ -66,7 +68,7 @@ def find_armature(operator, context):
         if checking == "ARMATURE":
             checking = "MESH"
         else:
-            operator.report({'ERROR'}, "No armature found in scene" if list == context.scene.objects else "No armature or weighted mesh selected")
+            operator.report({'ERROR'}, "No armature found in scene" if obj_list == context.scene.objects else "No armature or weighted mesh selected")
             return None
 
 
@@ -76,10 +78,10 @@ def materials_list(a, b):
         if ob.type == "MESH":
             for material_slot in ob.material_slots:
                 materials[material_slot.name] = True
-    list = [('__ALL__', 'Export all materials', '')]
+    mat_list = [('__ALL__', 'Export all materials', '')]
     for name in materials.keys():
-        list.append((name, name, ''))
-    return list
+        mat_list.append((name, name, ''))
+    return mat_list
 
 
 def fit_to_armature():
