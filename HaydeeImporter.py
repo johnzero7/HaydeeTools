@@ -429,50 +429,6 @@ class ImportHaydeeSkel(Operator, ImportHelper):
 # .dskel importer
 # --------------------------------------------------------------------------------
 
-def rootJointOriginTransform(pos):
-    vec = Vector((pos[0], pos[1], pos[2]))
-    return Vector((-vec.y, -vec.z, -vec.x))
-
-def jointOriginTransform(pos):
-    vec = Vector((pos[0], pos[1], pos[2]))
-    return Vector((-vec.x, vec.y, -vec.z))
-
-def rootJoinQuaternionTransform(quat):
-    q = Quaternion(quat)
-    return Quaternion((q.w, q.x, q.y, q.z))
-
-def joinQuaternionTransform(quat):
-    q = Quaternion(quat)
-    return Quaternion((q.w, q.x, q.y, q.z))
-
-
-def recurBonesOriginDSkel(progress, parentBone, jointNames, jointAxis, jointOrigin):
-    for childBone in parentBone.children:
-        if childBone:
-            idx = jointNames.index(childBone.name)
-            quat = Quaternion(jointAxis[idx])
-            ##print('Quaternion file:', childBone.name, quat)
-            quat = Quaternion((-quat.z, quat.w, quat.y, -quat.x))
-            ##print('Quaternion bone:', childBone.name, quat)
-            mat = joinQuaternionTransform(quat).to_matrix().to_4x4()
-            r = Quaternion([0, 0, 1], pi / 2)
-            boneRot = r.to_matrix().to_4x4()
-            mat = mat @ boneRot
-            ##mat = Matrix()
-            pos = jointOrigin[idx]
-            ##print('Pos file:', childBone.name, pos)
-            pos = jointOriginTransform(pos)
-            ##print('Pos bone:', childBone.name, pos)
-            ##mat = Matrix()
-            mat.translation = pos.xzy
-            matrix = mat
-
-            childBone.matrix = matrix
-            #childBone.matrix = r.to_matrix().to_4x4() @ mat
-            recurBonesOriginDSkel(progress, childBone, jointNames, jointAxis, jointOrigin)
-            progress.step()
-
-
 def read_dskel(operator, context, filepath):
     print('dskel:', filepath)
     with ProgressReport(context.window_manager) as progReport:
@@ -594,19 +550,19 @@ def read_dskel(operator, context, filepath):
                 # origins of each bone is relative to its parent
                 # recalc all origins
                 progress.enter_substeps(boneCount, "aligning bones")
-                rootBones = [rootBone for rootBone in armature_da.edit_bones if rootBone.parent is None]
-                for rootBone in rootBones:
-                    idx = jointNames.index(rootBone.name)
+
+                for edit_bone in armature_da.edit_bones:
+                    idx = jointNames.index(edit_bone.name)
                     quat = Quaternion(jointAxis[idx])
                     quat = Quaternion((-quat.z, quat.w, quat.y, -quat.x))
-                    mat = Quaternion(quat).to_matrix().to_4x4()
+                    mat = quat.to_matrix().to_4x4()
                     r = Quaternion([0, 0, 1], pi / 2)
                     boneRot = r.to_matrix().to_4x4()
                     mat = mat @ boneRot
-                    pos = rootJointOriginTransform(jointOrigin[idx])
+                    pos = Vector(jointOrigin[idx])
+                    pos = Vector((-pos.y, -pos.z, pos.x))
                     mat.translation = vectorSwapSkel(pos)
-                    rootBone.matrix = mat
-                    recurBonesOriginDSkel(progress, rootBone, jointNames, jointAxis, jointOrigin)
+                    edit_bone.matrix = mat
                     progress.step()
                 progress.leave_substeps("aligning bones end")
 
