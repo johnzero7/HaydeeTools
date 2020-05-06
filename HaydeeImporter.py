@@ -97,6 +97,15 @@ def recurBonesOrigin(progress, parentBone, jointNames, mats):
             progress.step()
 
 
+def rotateNonRootBone(parentBone):
+    if (parentBone.name == 'SK_Root'):
+        return
+    r = Quaternion((0, 0, 1), -pi / 2).to_matrix().to_4x4()
+    parentBone.matrix = r @ parentBone.matrix
+    for childBone in parentBone.children:
+        rotateNonRootBone(childBone)
+
+
 def read_skel(operator, context, filepath):
     print('skel:', filepath)
     with open(filepath, "rb") as a_file:
@@ -284,6 +293,10 @@ def read_skel(operator, context, filepath):
                             dist = (proxVec - proyVec).length
                             if (dist < 0.001):
                                 bone.tail = center
+
+                # Rotate bone not in 'SK_Root' chain
+                for bone in rootBones:
+                    rotateNonRootBone(bone)
 
                 bpy.ops.object.mode_set(mode='OBJECT')
                 progress.leave_substeps("Build armature end")
@@ -1173,8 +1186,6 @@ def read_motion(operator, context, filepath):
         boneNames.append(name)
 
     boneNames.reverse()
-# for name in sorted(boneNames):
-# print("- %s" % name)
 
     bpy.ops.object.mode_set(mode='OBJECT')
     bpy.ops.object.select_all(action='DESELECT')
@@ -1186,7 +1197,7 @@ def read_motion(operator, context, filepath):
     wm = bpy.context.window_manager
     wm.progress_begin(0, frameCount)
 
-    r = Quaternion([0, 0, 1], pi / 2)
+    r = Quaternion([0, 0, 1], pi / 2).to_matrix().to_4x4()
 
     context.scene.frame_start = 1
     context.scene.frame_end = frameCount
@@ -1216,12 +1227,21 @@ def read_motion(operator, context, filepath):
 
             if bone.parent:
                 m = pose.parent.matrix @ m
-            else:
-                origin = Vector([-x, -z, y])
-                m.translation = origin
-                m = m @ r.to_matrix().to_4x4()
 
             pose.matrix = m
+
+        # Rotate bone not in 'SK_Root' chain
+        rootBones = [rootBone for rootBone in armature.pose.bones if rootBone.parent is None]
+        for poseBone in rootBones:
+            bone_name = poseBone.name
+            data = bones.get(bone_name)
+            if data:
+                (x, y, z, qx, qz, qy, qw) = bones[bone_name][frame - 1]
+                origin = Vector([-z, x, y])
+                q = Quaternion([qw, -qy, qx, qz])
+                m = q.to_matrix().to_4x4()
+                m.translation = origin
+                poseBone.matrix = r @ m
 
         bpy.ops.anim.keyframe_insert(type='Rotation', confirm_success=False)
         bpy.ops.anim.keyframe_insert(type='Location', confirm_success=False)

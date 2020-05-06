@@ -45,7 +45,7 @@ def d(number):
 def find_armature(operator, context):
     armature = None
     checking = "ARMATURE"
-    obj_list = [context.active_object,] if context.active_object.type == checking else None
+    obj_list = [context.active_object, ] if context.active_object.type == checking else None
     if not obj_list:
         obj_list = context.selected_objects
     if not obj_list:
