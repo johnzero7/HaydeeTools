@@ -1,11 +1,10 @@
 # <pep8 compliant>
 
-import bpy
-import os
 import struct
+import os
 import io
 import codecs
-from .HaydeeUtils import d, find_armature
+import bpy
 from .HaydeeUtils import boneRenameBlender, decodeText
 from .HaydeeNodeMat import create_material
 from .timing import profile
@@ -22,7 +21,22 @@ from bpy.types import Operator
 from mathutils import Quaternion, Vector, Matrix
 from math import pi
 
+from enum import Enum
+class Signature(Enum):
+    HD_CHUNK = 0
+    HD_DATA_TXT = 1
+    HD_DATA_TXT_BOM = 2
+
+class MatType(Enum):
+    OPAQUE = 0
+    MASK = 1
+    HAIR = 2
+# Constants
+
 ARMATURE_NAME = 'Skeleton'
+HD_CHUNK = b'\x48\x44\x5F\x43\x48\x55\x4E\x4B'
+HD_DATA_TXT = b'\x48\x44\x5F\x44\x41\x54\x41\x5F\x54\x58\x54'
+HD_DATA_TXT_BOM = b'\xFF\xFE\x48\x00\x44\x00\x5F\x00\x44\x00\x41\x00\x54\x00\x41\x00\x5F\x00\x54\x00\x58\x00\x54\x00'
 
 # Swap matrix rows
 SWAP_ROW_SKEL = Matrix(((0, 0, 1, 0),
@@ -35,6 +49,37 @@ SWAP_COL_SKEL = Matrix(((1, 0, 0, 0),
                         (0, -1, 0, 0),
                         (0, 0, 0, 1)))
 
+# --------------------------------------------------------------------------------
+# binary helpers
+# --------------------------------------------------------------------------------
+
+# Read prefixed ANSI/utf8-as-ansi string
+def readStrA(start, data):
+    len = int.from_bytes(data[start:start+4], byteorder='little')
+    start += 4
+    return (data[start:start+len].decode("utf-8"), 4+len+1)
+
+# Read property name (until null terminator)
+def readStrA_term(start, maxLen, data):
+    i = -1
+    tStr = ""
+    while (i < maxLen):
+        i += 1
+        char = data[start+i]
+        if (char <= 0):
+            break
+        tStr += chr(char)
+
+    return (tStr,i)
+
+# Read UTF16/wide string
+def readStrW(start, data):
+    i = int.from_bytes(data[start:start+4], byteorder='little')
+    len = (i * 2)
+    start += 4
+    return (data[start:start+len].decode("utf-16-le"), 4+len+2)
+
+################################################################################################
 
 # Vector from Haydee format to Blender
 def vectorSwapSkel(vec):
@@ -662,7 +707,6 @@ def readWeights(line_split, vert_data):
 
 def stripLine(line):
     return line.strip().strip(';')
-
 
 def read_dmesh(operator, context, filepath):
     print('dmesh:', filepath)
@@ -1961,6 +2005,17 @@ class ImportHaydeeSkin(Operator, ImportHelper):
     def execute(self, context):
         return read_skin(self, context, self.filepath, None)
 
+def sig_check(filepath):
+    result = None
+    with open(filepath, "rb") as a_file:
+        raw = a_file.read(32)
+    if (raw.startswith(HD_CHUNK)):
+        result = Signature.HD_CHUNK
+    elif (raw.startswith(HD_DATA_TXT)):
+        result = Signature.HD_DATA_TXT
+    elif (raw.startswith(HD_DATA_TXT_BOM)):
+        result = Signature.HD_DATA_TXT_BOM
+    return result
 
 # --------------------------------------------------------------------------------
 # .material importer
@@ -1975,89 +2030,117 @@ def read_material(operator, context, filepath):
         with ProgressReportSubstep(progReport, 4, "Importing outfit", "Finish Importing outfit") as progress:
 
             data = None
-            bytes = min(32, os.path.getsize(filepath))
-            with open(filepath, "rb") as a_file:
-                raw = a_file.read(bytes)
+            assetType = sig_check(filepath)
+            propMap = dict( type={'reader': 'i'},
+                            twoSided={'reader': 'i'},
+                            width={'reader': 'f'},
+                            height={'reader': 'f'},
+                            autouv={'reader': 'i'},
+                            diffuseMap = {'reader': 's', 'encoding': 'utf-16-le'},
+                            normalMap = {'reader': 's', 'encoding': 'utf-16-le'},
+                            specularMap = {'reader': 's', 'encoding': 'utf-16-le'},
+                            emissionMap = {'reader': 's', 'encoding': 'utf-16-le'},
+                            censorMap = {'reader': 's', 'encoding': 'utf-16-le'},
+                            maskMap = {'reader': 's', 'encoding': 'utf-16-le'},
+                            surface = {'reader': 's', 'encoding': 'utf-8'},
+                            speculars = {'reader': 'fff'})
+            #
+            # We have binary material
+            if (assetType == Signature.HD_CHUNK):
+                print('Signature: HD_CHUNK')
+                with open(filepath, "rb") as a_file:
+                    data = a_file.read()
+                
+                (sig, ver, entries, serialSize, assType) = struct.unpack('<16siii8s', data[0:36])
+                assType = assType.decode("utf-8")
 
-            encoding = "utf-8-sig"
-            if raw.startswith(codecs.BOM):
-                encoding = "utf-16"
+                if (assType != 'material' or entries < 7 or serialSize < 40):
+                    print("Invalid binary mtl: %s, %s entries, %s serialSize" % (assType, entries,serialSize))
+                    operator.report({'ERROR'}, "Unrecognized file format")
+                    return {'FINISHED'}
+                
+                # At this point file has to be malformed to fail
+                sOffset = 28 + (entries * 48)
+                for x in range(1, entries):
+                    sPos = 28 + (x * 48)
+                    (name, size, offset, numSubs, subs) = struct.unpack('<32siiii', data[sPos:sPos+48])
+                    name = readStrA_term(0, 32, name)[0]
+                    propMap[name].update(dict(zip(['size', 'offset', 'numSubs', 'subs', 'hasValue'],[size, offset, numSubs, subs, size > 0])))
+                
+                for key, value in propMap.items():
+                    if (value.get("hasValue")):
+                        (f, lSize, lOff) = (value['reader'], value['size'], value['offset'])
+                        if (f == 's'):
+                            lSize = lSize - 1 - int((value['encoding'] == 'utf-16-le')) - 4
+                            f = '<' + str(lSize) + f
+                            lOff = lOff + 4
+                        else:
+                            f = '<'+ f
+                        lOff = sOffset + lOff
+                        
+                        val = struct.unpack(f, data[lOff:lOff+lSize]) if len(value['reader']) > 1 else struct.unpack(f, data[lOff:lOff+lSize])[0]
+                        enc = value.get("encoding")
+                        if (enc):
+                            value["value"] = val.decode(enc)
+                        else:
+                            value["value"] = val
+            elif (assetType == None):
+                    print("Unable to read file or file empty: %s" % (filepath))
+                    operator.report({'ERROR'}, "Unable to read file or file empty")
+                    return {'FINISHED'}
+            else:
+                encoding = "utf-8-sig" if (assetType == Signature.HD_DATA_TXT) else "utf-16"
+                with open(filepath, "r", encoding=encoding) as a_file:
+                    data = io.StringIO(a_file.read())
 
-            with open(filepath, "r", encoding=encoding) as a_file:
-                data = io.StringIO(a_file.read())
+                print("Signature: %s" % assetType.name)
+                propMap = dict( type={'reader':          lambda s: MatType[s]},
+                                twoSided={'reader':      lambda s: s.lower() == 'true'},
+                                width={'reader':         lambda s: float(s)},
+                                height={'reader':        lambda s: float(s)},
+                                autouv={'reader':        lambda s: int(s)},
+                                diffuseMap = {'reader':  lambda s: s.strip('"')},
+                                normalMap = {'reader':   lambda s: s.strip('"')},
+                                specularMap = {'reader': lambda s: s.strip('"')},
+                                emissionMap = {'reader': lambda s: s.strip('"')},
+                                censorMap = {'reader':   lambda s: s.strip('"')},
+                                maskMap = {'reader':     lambda s: s.strip('"')},
+                                surface = {'reader':     lambda s: s},
+                                speculars = {'reader':   lambda s: tuple([float(val) for val in s.split()])})
 
-            line = stripLine(data.readline())
-            line_split = line.split()
-            line_start = line_split[0]
-            signature = line_start
+                line = data.readline()
+                c = 0
+                while (line != '{' and c < 50):
+                    line = data.readline().strip()
+                    c = c+1
+                c = 0
+                while (line != '}' and c < 50):
+                    c = c+1
+                    line = data.readline().strip().strip(';')
+                    if (line == '}'): break
+                    key = line[0:line.index(' ')]
+                    value = line[line.index(' ')+1:]
+                    propMap[key]["value"] = propMap[key]["reader"](value)
 
-            print('Signature:', signature)
-            if signature != 'HD_DATA_TXT':
-                print("Unrecognized signature: %s" % signature)
-                operator.report({'ERROR'}, "Unrecognized file format")
-                return {'FINISHED'}
-
-            level = 0
-            outfitName = None
-
-            diffuseMap = None
-            normalMap = None
-            specularMap = None
-            emissionMap = None
-            blend = None
-
-            # steps = len(data.getvalue().splitlines()) - 1
-            progress.enter_substeps(1, "Parse Data")
-            # Read model data
-            for lineData in data:
-                line = stripLine(lineData)
-                line_split = line.split(maxsplit=1)
-                line_start = None
-                i = len(line_split)
-                if (i == 0):
-                    continue
-                line_start = line_split[0]
-                if (line_start in ('{')):
-                    level += 1
-                if (line_start in ('}')):
-                    level -= 1
-                    contextName = None
-
-                # textures
-                if (line_start == 'diffuseMap' and level == 1):
-                    diffuseMap = line_split[1].replace('"', '')
-                if (line_start == 'normalMap' and level == 1):
-                    normalMap = line_split[1].replace('"', '')
-                if (line_start == 'specularMap' and level == 1):
-                    specularMap = line_split[1].replace('"', '')
-                if (line_start == 'emissionMap' and level == 1):
-                    emissionMap = line_split[1].replace('"', '')
-                if (line_start == 'type' and level == 1):
-                    blend = line_split[1].replace('"', '')
-
+            # Ready to create material
             obj = bpy.context.view_layer.objects.active
             basedir = os.path.dirname(filepath)
             matName = os.path.basename(filepath)
             matName = os.path.splitext(matName)[0]
 
-            if diffuseMap:
-                diffuseMap = haydeeFilepath(basedir, diffuseMap)
-            if normalMap:
-                normalMap = haydeeFilepath(basedir, normalMap)
-            if specularMap:
-                specularMap = haydeeFilepath(basedir, specularMap)
-            if emissionMap:
-                emissionMap = haydeeFilepath(basedir, emissionMap)
+            for key, value in propMap.items():
+                if ('Map') in key:
+                    print(key)
+                    vMap = value.get("value")
+                    print(vMap)
+                    if (vMap):
+                        value["value"] = material_path(basedir, vMap)
 
-            useAlpha = False
-            if blend == 'MASK':
-                useAlpha = True
-
-            create_material(obj, useAlpha, matName, diffuseMap, normalMap, specularMap, emissionMap)
+            useAlpha = (propMap.get("type") and propMap["type"]["value"] == 1)
+            create_material(obj, useAlpha, matName, propMap['diffuseMap'].get('value'), propMap['normalMap'].get('value'), propMap['specularMap'].get('value'), propMap['emissionMap'].get('value'))
 
     return {'FINISHED'}
-
-
+ 
 class ImportHaydeeMaterial(Operator, ImportHelper):
     bl_idname = "haydee_importer.material"
     bl_label = "Import Haydee Material (.mtl)"
@@ -2077,6 +2160,7 @@ class ImportHaydeeMaterial(Operator, ImportHelper):
 def haydeeFilepath(mainpath, filepath):
     path = filepath
     if not os.path.isabs(filepath):
+        #if (filepath.rfind('\\') < 0):
         # Current Folder
         currPath = os.path.relpath(filepath, r'outfits')
         basedir = os.path.dirname(mainpath)
@@ -2087,6 +2171,26 @@ def haydeeFilepath(mainpath, filepath):
             idx = basedir.lower().find(r'\outfit')
             path = basedir[:idx]
             path = os.path.join(path, filepath)
+    return path
+
+def material_path(mainpath, filepath):
+    path = filepath
+    if not os.path.isabs(filepath):
+        if (filepath.rfind('\\') < 0):
+            # Current Folder
+            path = os.path.join(mainpath, filepath)
+        else:
+            newMain = None
+            oldMain = mainpath
+            c = 0
+            while (True and c < 50):
+                newMain = os.path.split(oldMain)[0]
+                newFull = os.path.join(newMain, filepath)
+                if (os.path.isfile(newFull) or newMain == oldMain):
+                    path = newFull
+                    break
+                oldMain = newMain
+                c = c + 1
     return path
 
 
