@@ -3,7 +3,7 @@
 import bpy
 import os
 import re
-from .HaydeeUtils import d, find_armature
+from .HaydeeUtils import d, find_armature, file_format_prop
 from .HaydeeUtils import boneRenameHaydee, materials_list, stripName, NAME_LIMIT
 from . import HaydeeMenuIcon
 from bpy_extras.wm_utils.progress_report import (
@@ -16,7 +16,7 @@ from bpy_extras.wm_utils.progress_report import (
 from bpy_extras.io_utils import ExportHelper
 from bpy.props import StringProperty, BoolProperty, EnumProperty
 from bpy.types import Operator
-from mathutils import Quaternion, Vector
+from mathutils import Quaternion, Vector, Matrix
 from math import pi
 
 
@@ -223,7 +223,7 @@ class ExportHaydeeDMotion(Operator, ExportHelper):
 
 def write_dmesh(operator, context, filepath, export_skeleton,
                 apply_modifiers, selected_only, separate_files,
-                ignore_hidden, SELECTED_MATERIAL):
+                ignore_hidden, SELECTED_MATERIAL, file_format):
     print("Exporting mesh, material: %s" % SELECTED_MATERIAL)
 
     mesh_count = 0
@@ -346,7 +346,10 @@ def write_dmesh(operator, context, filepath, export_skeleton,
             uv_indexes = [-1] * uv_count
             if len(mesh.uv_layers) >= 1:
                 for uv in new_mesh_uvs:
-                    uvs_output.append("\t\tuv %s %s;\n" % (d(uv.x), d(uv.y)))
+                    uv_coord = Vector(uv)
+                    if (file_format == 'H2'):
+                        uv_coord = Vector((uv_coord.x, 1-uv_coord.y))
+                    uvs_output.append("\t\tuv %s %s;\n" % (d(uv_coord.x), d(uv_coord.y)))
 
             EXPORT_SMOOTH_GROUPS = False
             EXPORT_SMOOTH_GROUPS_BITFLAGS = True
@@ -628,6 +631,8 @@ class ExportHaydeeDMesh(Operator, ExportHelper):
 
     # List of operator properties, the attributes will be assigned
     # to the class instance from the operator settings before calling.
+    file_format: file_format_prop
+
     selected_only: BoolProperty(
         name="Selected only",
         description="Export only selected objects (if nothing is selected, full scene will be exported regardless of this setting)",
@@ -666,7 +671,7 @@ class ExportHaydeeDMesh(Operator, ExportHelper):
     def execute(self, context):
         return write_dmesh(self, context, self.filepath, self.export_skeleton,
                            self.apply_modifiers, self.selected_only, self.separate_files,
-                           self.ignore_hidden, self.material)
+                           self.ignore_hidden, self.material, self.file_format)
 
 
 # --------------------------------------------------------------------------------

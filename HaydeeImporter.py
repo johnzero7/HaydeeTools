@@ -5,7 +5,7 @@ import os
 import struct
 import io
 import codecs
-from .HaydeeUtils import d, find_armature
+from .HaydeeUtils import d, find_armature, file_format_prop
 from .HaydeeUtils import boneRenameBlender, decodeText
 from .HaydeeNodeMat import create_material
 from .timing import profile
@@ -21,6 +21,16 @@ from bpy.props import StringProperty, BoolProperty, EnumProperty
 from bpy.types import Operator
 from mathutils import Quaternion, Vector, Matrix
 from math import pi
+
+
+def get_file_encoding(filepath):
+    data = None
+    encoding = None
+    with open(filepath, "rb") as a_file:
+        encoding = chardet.detect(a_file.read(32))
+
+    return encoding['encoding']
+
 
 ARMATURE_NAME = 'Skeleton'
 
@@ -424,12 +434,12 @@ def build_driver(driver, expression, component, source_bone, target_bone):
 
 class ImportHaydeeSkel(Operator, ImportHelper):
     bl_idname = "haydee_importer.skel"
-    bl_label = "Import Haydee Skel (.skel)"
+    bl_label = "Import Haydee Skel (.skel/.skeleton)"
     bl_description = "Import a Haydee Skeleton"
     bl_options = {'REGISTER', 'UNDO'}
     filename_ext = ".skel"
     filter_glob: StringProperty(
-        default="*.skel",
+        default="*.skel;*.skeleton",
         options={'HIDDEN'},
         maxlen=255,  # Max internal buffer length, longer would be clamped.
     )
@@ -664,7 +674,7 @@ def stripLine(line):
     return line.strip().strip(';')
 
 
-def read_dmesh(operator, context, filepath):
+def read_dmesh(operator, context, filepath, file_format):
     print('dmesh:', filepath)
     with ProgressReport(context.window_manager) as progReport:
         with ProgressReportSubstep(progReport, 4, "Importing dmesh", "Finish Importing dmesh") as progress:
@@ -897,7 +907,10 @@ def read_dmesh(operator, context, filepath):
                     mesh_data.uv_layers.new()
                     blen_uvs = mesh_data.uv_layers[-1]
                     for idx, uvs in enumerate([uv for uvs in face_uvs for uv in uvs[::-1]]):
-                        blen_uvs.data[idx].uv = uv_data[int(uvs)]
+                        uv_coord = Vector(uv_data[int(uvs)])
+                        if (file_format=='H2'):
+                            uv_coord = Vector((uv_coord.x, 1-uv_coord.y))
+                        blen_uvs.data[idx].uv = uv_coord
                 progress.leave_substeps("uv end")
 
                 useSmooth = True
@@ -998,19 +1011,21 @@ class ImportHaydeeDMesh(Operator, ImportHelper):
         maxlen=255,  # Max internal buffer length, longer would be clamped.
     )
 
+    file_format: file_format_prop
+
     def invoke(self, context, event):
         context.window_manager.fileselect_add(self)
         return {'RUNNING_MODAL'}
 
     def execute(self, context):
-        return read_dmesh(self, context, self.filepath)
+        return read_dmesh(self, context, self.filepath, self.file_format)
 
 
 # --------------------------------------------------------------------------------
 # .mesh importer
 # --------------------------------------------------------------------------------
 
-def read_mesh(operator, context, filepath, outfitName):
+def read_mesh(operator, context, filepath, outfitName, file_format):
     print('Mesh:', filepath)
     with ProgressReport(context.window_manager) as progReport:
         with ProgressReportSubstep(progReport, 4,
@@ -1104,7 +1119,10 @@ def read_mesh(operator, context, filepath, outfitName):
                 mesh_data.uv_layers.new()
                 blen_uvs = mesh_data.uv_layers[-1]
                 for loop in mesh_data.loops:
-                    blen_uvs.data[loop.index].uv = uv_data[loop.vertex_index]
+                    uv_coord = Vector(uv_data[loop.vertex_index])
+                    if (file_format=='H2'):
+                        uv_coord = Vector((uv_coord.x, 1-uv_coord.y))
+                    blen_uvs.data[loop.index].uv = uv_coord
             progress.leave_substeps("uv end")
 
             # normals
@@ -1135,12 +1153,14 @@ class ImportHaydeeMesh(Operator, ImportHelper):
         maxlen=255,  # Max internal buffer length, longer would be clamped.
     )
 
+    file_format: file_format_prop
+
     def invoke(self, context, event):
         context.window_manager.fileselect_add(self)
         return {'RUNNING_MODAL'}
 
     def execute(self, context):
-        return read_mesh(self, context, self.filepath, None)
+        return read_mesh(self, context, self.filepath, None, self.file_format)
 
 
 # --------------------------------------------------------------------------------
@@ -1160,7 +1180,7 @@ def read_motion(operator, context, filepath):
     INIT_INFO = 32
     SIZE2 = 36
 
-    (signature, version, keyCount, boneCount, firstFrame, frameCount, dataSize) = \
+    (signature, version, keyCount, boneCount, firstFrame, numFrames, dataSize) = \
         struct.unpack('16sIIII4xII', data[0:SIGNATURE_SIZE])
     signature = decodeText(signature)
     print("Signature:", signature)
@@ -1178,7 +1198,7 @@ def read_motion(operator, context, filepath):
         name = boneRenameBlender(name)
 
         keys = []
-        for k in range(firstKey, firstKey + frameCount):
+        for k in range(firstKey, firstKey + numFrames):
             offset = SIGNATURE_SIZE + KEY_SIZE * k
             (x, y, z, qx, qz, qy, qw) = struct.unpack('3f4f', data[offset:offset + KEY_SIZE])
             keys.append((x, y, z, qx, qz, qy, qw))
@@ -1195,15 +1215,15 @@ def read_motion(operator, context, filepath):
     bpy.ops.object.mode_set(mode='POSE')
 
     wm = bpy.context.window_manager
-    wm.progress_begin(0, frameCount)
+    wm.progress_begin(0, numFrames)
 
     r = Quaternion([0, 0, 1], pi / 2).to_matrix().to_4x4()
 
     context.scene.frame_start = 1
-    context.scene.frame_end = frameCount
+    context.scene.frame_end = numFrames
     for pose in context.selected_pose_bones:
         pose.bone.select = False
-    for frame in range(1, frameCount + 1):
+    for frame in range(1, numFrames + 1):
         wm.progress_update(frame - 1)
         context.scene.frame_current = frame
         #Blender 2.91 BUG. needs to set pose mode after changing frame
@@ -1368,7 +1388,7 @@ def read_dmotion(operator, context, filepath):
             wm = bpy.context.window_manager
             wm.progress_begin(0, numFrames)
 
-            r = Quaternion([0, 0, 1], pi / 2)
+            r = Quaternion([0, 0, 1], pi / 2).to_matrix().to_4x4()
 
             context.scene.frame_start = 1
             context.scene.frame_end = numFrames
@@ -1403,7 +1423,7 @@ def read_dmotion(operator, context, filepath):
                     else:
                         origin = Vector([-x, -z, y])
                         m.translation = origin
-                        m = m @ r.to_matrix().to_4x4()
+                        m = m @ r
 
                     pose.matrix = m
 
@@ -1677,13 +1697,14 @@ class ImportHaydeeDPose(Operator, ImportHelper):
 # --------------------------------------------------------------------------------
 
 # profile
-def read_outfit(operator, context, filepath):
+def read_outfit(operator, context, filepath, file_format):
     print('Outfit:', filepath)
     with ProgressReport(context.window_manager) as progReport:
         with ProgressReportSubstep(progReport, 4, "Importing outfit", "Finish Importing outfit") as progress:
 
             data = None
             encoding = "utf-8-sig"
+            encoding = get_file_encoding(filepath)
             with open(filepath, "r", encoding=encoding, errors="surrogateescape") as a_file:
                 data = io.StringIO(a_file.read())
 
@@ -1721,6 +1742,9 @@ def read_outfit(operator, context, filepath):
                 if (line_start in ('}')):
                     level -= 1
                     contextName = None
+
+                if (line_start == 'outfit' and level == 0 and len(line_split) > 1):
+                    outfitName = line_split[1].replace('"', '')
 
                 # Joints
                 if (line_start == 'name' and level == 1):
@@ -1763,7 +1787,7 @@ def read_outfit(operator, context, filepath):
 
                 # Create Mesh
                 if meshpath and os.path.exists(meshpath):
-                    read_mesh(operator, context, meshpath, outfitName)
+                    read_mesh(operator, context, meshpath, outfitName, file_format)
                     imported_meshes.append(bpy.context.view_layer.objects.active)
                 else:
                     filename = os.path.splitext(os.path.basename(meshpath))[0]
@@ -1810,8 +1834,10 @@ class ImportHaydeeOutfit(Operator, ImportHelper):
         maxlen=255,  # Max internal buffer length, longer would be clamped.
     )
 
+    file_format: file_format_prop
+
     def execute(self, context):
-        return read_outfit(self, context, self.filepath)
+        return read_outfit(self, context, self.filepath, self.file_format)
 
 
 # --------------------------------------------------------------------------------

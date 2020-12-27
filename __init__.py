@@ -1,11 +1,11 @@
 # <pep8 compliant>
 
-"""Blender Addon. Haydee importer/exporter."""
+"""Blender Addon. Haydee 1 & 2 importer/exporter."""
 
 bl_info = {
-    "name": "Haydee I/O Scripts",
+    "name": "Haydee 1 & 2 I/O Scripts",
     "author": "johnzero7",
-    "version": (1, 2, 0),
+    "version": (1, 3, 1),
     "blender": (2, 80, 0),
     "location": "File > Import-Export > HaydeeTools",
     "description": "Import-Export scripts for Haydee",
@@ -19,11 +19,11 @@ bl_info = {
 #############################################
 # support reloading sub-modules
 _modules = [
+    'HaydeeUtils',
     'HaydeeMenuIcon',
     'HaydeePanels',
     'HaydeeExporter',
     'HaydeeImporter',
-    'HaydeeUtils',
     'HaydeeNodeMat',
     'addon_updater_ops',
 ]

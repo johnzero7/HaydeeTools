@@ -1,8 +1,18 @@
 # <pep8 compliant>
 
 import bpy
+from bpy.props import EnumProperty
 
 NAME_LIMIT = 31
+
+file_format_prop = EnumProperty(
+    name="File Format",
+    description="Select file format Haydee 1 / Haydee 2 (flipped UV)",
+    items=(('H1', 'Haydee 1', 'Use Haydee 1 File Format'),
+           ('H2', 'Haydee 2', 'Use Haydee 2 File Format'),
+        ),
+    default='H2',
+)
 
 
 def boneRenameBlender(bone_name):

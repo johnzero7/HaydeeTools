@@ -1,6 +1,6 @@
 Haydee Tools
 =========
-Blender an addon to Export/Import Haydee assets.
+Blender an addon to Export/Import Haydee 1 & 2 assets.
 
 With Blender 2.80 released there where many changes.
 
