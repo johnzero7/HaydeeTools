@@ -1,10 +1,18 @@
 # <pep8 compliant>
 
-import bpy
-import os
+# Native imports
 import struct
+import os
 import io
+import binascii
+import chardet
 import codecs
+from enum import Enum
+from math import pi
+from io import BytesIO
+
+# Blender and own imports
+import bpy
 from .HaydeeUtils import d, find_armature, file_format_prop
 from .HaydeeUtils import boneRenameBlender, decodeText
 from .HaydeeNodeMat import create_material
@@ -20,7 +28,6 @@ from bpy_extras.io_utils import ImportHelper
 from bpy.props import StringProperty, BoolProperty, EnumProperty
 from bpy.types import Operator
 from mathutils import Quaternion, Vector, Matrix
-from math import pi
 
 
 def get_file_encoding(filepath):
@@ -32,7 +39,20 @@ def get_file_encoding(filepath):
     return encoding['encoding']
 
 
+# Global enum for asset type
+class Signature(Enum):
+    HD_CHUNK = 0
+    HD_DATA_TXT = 1
+    HD_DATA_TXT_BOM = 2
+    HD_MOTION = 3
+
+# Constants
+
 ARMATURE_NAME = 'Skeleton'
+HD_CHUNK = b'\x48\x44\x5F\x43\x48\x55\x4E\x4B'
+HD_DATA_TXT = b'\x48\x44\x5F\x44\x41\x54\x41\x5F\x54\x58\x54'
+HD_DATA_TXT_BOM = b'\xFF\xFE\x48\x00\x44\x00\x5F\x00\x44\x00\x41\x00\x54\x00\x41\x00\x5F\x00\x54\x00\x58\x00\x54\x00'
+HD_MOTION = b'\x48\x44\x5F\x4D\x4F\x54\x49\x4F\x4E\x00'
 
 # Swap matrix rows
 SWAP_ROW_SKEL = Matrix(((0, 0, 1, 0),
@@ -45,6 +65,45 @@ SWAP_COL_SKEL = Matrix(((1, 0, 0, 0),
                         (0, -1, 0, 0),
                         (0, 0, 0, 1)))
 
+# --------------------------------------------------------------------------------
+# binary helpers
+# --------------------------------------------------------------------------------
+def sig_check(mview):
+    result = None
+    if (mview[0:8] == (HD_CHUNK)):
+        result = Signature.HD_CHUNK
+    elif (mview[0:11] == (HD_DATA_TXT)):
+        result = Signature.HD_DATA_TXT
+    elif (mview[0:24] == (HD_DATA_TXT_BOM)):
+        result = Signature.HD_DATA_TXT_BOM
+    elif (mview[0:10] == (HD_MOTION)):
+        result = Signature.HD_MOTION
+    return result
+
+# Read prefixed ANSI/utf8-as-ansi string
+def readStrA(start, data):
+    len = int.from_bytes(data[start:start+4], byteorder='little')
+    start += 4
+    return (data[start:start+len].decode("utf-8"), 4+len+1)
+
+# Read property name (until null terminator)
+def readStrA_term(start, maxLen, data):
+    i, tStr, found = -1, "", False
+    while (i < maxLen):
+        i += 1
+        if (data[start+i] <= 0):
+            found = True
+            break
+    if (found):
+        tStr = codecs.decode(data[start:start+i], "latin")
+    return (tStr,i)
+
+# Read UTF16/wide string
+def readStrW(start, data):
+    i = int.from_bytes(data[start:start+4], byteorder='little')
+    len = (i * 2)
+    start += 4
+    return (codecs.decode(data[start:start+len], "utf-16-le"), 4+len+2)
 
 # Vector from Haydee format to Blender
 def vectorSwapSkel(vec):
@@ -108,125 +167,132 @@ def recurBonesOrigin(progress, parentBone, jointNames, mats):
 
 
 def rotateNonRootBone(parentBone):
-    if (parentBone.name == 'SK_Root'):
+    if ('root' in parentBone.name.lower()):
         return
     r = Quaternion((0, 0, 1), -pi / 2).to_matrix().to_4x4()
     parentBone.matrix = r @ parentBone.matrix
     for childBone in parentBone.children:
         rotateNonRootBone(childBone)
 
+# Parse bone data helper
+def read_bone_data(memData, propMap, jointNames, jointParents, mats, dimensions):
+    boneCount = propMap['numBones']['value']
+    BONE_SIZE = int(propMap['bones']['size'] / boneCount)
+    unpack_bone = struct.Struct('<32s16fi3fi').unpack
+    for n in range(boneCount):
+        offset = (BONE_SIZE * n)
+        (name,
+            f1, f2, f3, f4,
+            f5, f6, f7, f8,
+            f9, f10, f11, f12,
+            f13, f14, f15, f16,
+            parent, width, height, lenght, flags) = unpack_bone(memData[offset:offset + BONE_SIZE])
 
+        name = readStrA_term(0, 32, memoryview(name))[0]
+        name = boneRenameBlender(name)
+        mat = Matrix(((f1, f5, f9, f13),
+                        (f2, f6, f10, f14),
+                        (f3, f7, f11, f15),
+                        (f4, f8, f12, f16)))
+        jointNames.append(name)
+        jointParents.append(parent)
+        mats.append(mat)
+        dimensions.append((width, height, lenght))
+    return True
+
+# Parse joint data helper
+def read_joint_data(memData, propMap, joint_data):
+    joints_count = propMap['numJoints']['value']
+    JOINT_SIZE = int(propMap['joints']['size'] / joints_count)
+    unpack_joint = struct.Struct('<18f4f').unpack
+    for n in range(joints_count):
+        offset = (JOINT_SIZE * n)
+        (
+            index, parent,
+            f1, f2, f3, f4,
+            f5, f6, f7, f8,
+            f9, f10, f11, f12,
+            f13, f14, f15, f16,
+            twistX, twistY, swingX, swingY) = unpack_joint(memData[offset:offset + JOINT_SIZE])
+
+        mat = Matrix((
+                    (f1, f5, f9, f13),
+                    (f2, f6, f10, f14),
+                    (f3, f7, f11, f15),
+                    (f4, f8, f12, f16)
+        ))
+
+        joint_data[index] = {
+            'parent': parent,
+            'twistX': twistX, 'twistY': twistY,
+            'swingX': swingX, 'swingY': swingY,
+            'matrix': mat
+        }
+    return True
+
+# Parse fixes data
+def read_fixes_data(memData, propMap, fix_data):
+    fixes_count = propMap['numFixes']['value']
+    FIXES_SIZE = int(propMap['fixes']['size'] / fixes_count)
+    unpack_fixes = struct.Struct('<5I').unpack
+    for n in range(fixes_count):
+        offset = (FIXES_SIZE * n)
+        (type, flags, fix1, fix2, index) = unpack_fixes(memData[offset:offset + FIXES_SIZE])
+        fix_data[index] = ({'type': type, 'flags': flags, 'fix1': fix1, 'fix2': fix2})
+    return True
 def read_skel(operator, context, filepath):
     print('skel:', filepath)
     with open(filepath, "rb") as a_file:
         data = a_file.read()
+    mview = memoryview(data)
 
-    SIGNATURE_SIZE = 28
-    CHUNK_SIZE = 48
-    INIT_INFO = 20
-    BONE_SIZE = 116
-    JOINT_SIZE = 88
-    SLOTS_SIZE = 100
-    FIXES_SIZE = 20
+    (entries, serialSize, assType) = struct.unpack('<ii8s', mview[20:36])
+    assType = assType.decode("latin")
 
-    (signature, chunkCount, totalSize) = struct.unpack('20sII', data[0:SIGNATURE_SIZE])
-    signature = decodeText(signature)
-    print("Signature:", signature)
-    if signature != 'HD_CHUNK':
-        print("Unrecognized signature: %s" % signature)
+    if (sig_check(mview) != Signature.HD_CHUNK or assType != 'skeleton'):
+        print("Unrecognized signature or asset type: [%s], %s" % (binascii.hexlify(mview[0:16]), assType))
         operator.report({'ERROR'}, "Unrecognized file format")
         return {'FINISHED'}
 
-    delta = SIGNATURE_SIZE + (CHUNK_SIZE * chunkCount)
-    (boneCount, joints_count, slots_count, fixes_count, unk) = \
-        struct.unpack('5I', data[delta:delta + INIT_INFO])
+    # Compiled structs
+    unpack_int = struct.Struct('<i').unpack
+    unpack_entry = struct.Struct('<32siiii').unpack
 
+    # Data
+    jointNames, jointParents, mats, dimensions = [], [], [], []
+    joint_data, fix_data = {}, {}
     armature_ob = None
 
+    propMap = dict(numBones=   {'reader': lambda x: unpack_int(x)[0]},
+                   numJoints=  {'reader': lambda x: unpack_int(x)[0]},
+                   numFixes=   {'reader': lambda x: unpack_int(x)[0]},
+                   numBounds=  {'reader': lambda x: unpack_int(x)[0]},
+                   numTrackers={'reader': lambda x: unpack_int(x)[0]},
+                   numSlots=   {'reader': lambda x: unpack_int(x)[0]},
+                   bones=      {'reader': lambda x: read_bone_data(x, propMap, jointNames, jointParents, mats, dimensions)},
+                   fixes=      {'reader': lambda x: read_fixes_data(x, propMap, fix_data)},
+                   joints=     {'reader': lambda x: read_joint_data(x, propMap, joint_data)},
+                   slots=      {'reader': lambda x: print("Skipping slots since this data is irrelevant")})
+
+    dataOffset = 28 + (entries * 48)
+
+    for x in range(1, entries):
+        sPos = 28 + (x * 48)
+        (name, size, offset, numSubs, subs) = unpack_entry(mview[sPos:sPos+48])
+        name = readStrA_term(0, 32, memoryview(name))[0]
+        propMap[name].update(dict(zip(['size', 'offset', 'numSubs', 'subs', 'hasValue'],[size, offset, numSubs, subs, size > 0])))
+
+    for key, value in propMap.items():
+        if (value.get("hasValue")):
+            (f, lSize, lOff) = (value['reader'], value['size'], value['offset'])
+            lOff = dataOffset + lOff
+            value["value"] = f(mview[lOff:lOff+lSize])
+
+    print(fix_data)
     with ProgressReport(context.window_manager) as progReport:
         with ProgressReportSubstep(progReport, 4, "Importing skel", "Finish Importing skel") as progress:
 
-            headerSize = SIGNATURE_SIZE + (CHUNK_SIZE * chunkCount) + INIT_INFO
-            bones = {}
-            jointNames = []
-            jointParents = []
-            mats = []
-            dimensions = []
-            unk = []
-            joint_data = {}
-            slot_data = {}
-            fix_data = {}
-
-            for n in range(boneCount):
-                offset = headerSize + (BONE_SIZE * n)
-                (name,
-                    f1, f2, f3, f4,
-                    f5, f6, f7, f8,
-                    f9, f10, f11, f12,
-                    f13, f14, f15, f16,
-                    parent, width, height, lenght, flags) = \
-                    struct.unpack('32s16fi3fi', data[offset:offset + BONE_SIZE])
-                name = decodeText(name)
-                name = boneRenameBlender(name)
-
-                mat = Matrix(((f1, f5, f9, f13),
-                              (f2, f6, f10, f14),
-                              (f3, f7, f11, f15),
-                              (f4, f8, f12, f16)))
-                jointNames.append(name)
-                jointParents.append(parent)
-                mats.append(mat)
-                dimensions.append((width, height, lenght))
-
-            for n in range(joints_count):
-                offset = headerSize + (BONE_SIZE * boneCount) + (JOINT_SIZE + n)
-                (
-                    index, parent,
-                    f1, f2, f3, f4,
-                    f5, f6, f7, f8,
-                    f9, f10, f11, f12,
-                    f13, f14, f15, f16,
-                    twistX, twistY, swingX, swingY) = \
-                    struct.unpack('18f4f', data[offset:offset + JOINT_SIZE])
-
-                mat = Matrix((
-                            (f1, f5, f9, f13),
-                            (f2, f6, f10, f14),
-                            (f3, f7, f11, f15),
-                            (f4, f8, f12, f16)
-                ))
-
-                joint_data[index] = {
-                    'parent': parent,
-                    'twistX': twistX, 'twistY': twistY,
-                    'swingX': swingX, 'swingY': swingY,
-                    'matrix': mat
-                }
-
-            for n in range(slots_count):
-                offset = headerSize + (BONE_SIZE * boneCount) + (JOINT_SIZE * joints_count) + (SLOTS_SIZE * n)
-
-                (name,
-                    f1, f2, f3, f4,
-                    f5, f6, f7, f8,
-                    f9, f10, f11, f12,
-                    f13, f14, f15, f16,
-                    index) = \
-                    struct.unpack('32s16f1f', data[offset:offset + SLOTS_SIZE])
-                name = decodeText(name)
-                mat = Matrix(((f1, f5, f9, f13),
-                              (f2, f6, f10, f14),
-                              (f3, f7, f11, f15),
-                              (f4, f8, f12, f16)))
-                slot_data[index] = {'name': name, 'matrix': mat}
-
-            for n in range(fixes_count):
-                offset = headerSize + (BONE_SIZE * boneCount) + (JOINT_SIZE * joints_count) + (SLOTS_SIZE * slots_count) + (FIXES_SIZE * n)
-                (type, flags, fix1, fix2, index) = \
-                    struct.unpack('5I', data[offset:offset + FIXES_SIZE])
-                fix_data[index] = ({'type': type, 'flags': flags, 'fix1': fix1, 'fix2': fix2})
-
-            # create armature
+             # create armature
             if (bpy.context.mode != 'OBJECT'):
                 bpy.ops.object.mode_set(mode='OBJECT')
             bpy.ops.object.select_all(action='DESELECT')
@@ -326,81 +392,84 @@ def read_skel(operator, context, filepath):
                     constraint = pose_bone.constraints.new('LIMIT_ROTATION')
                     constraint.use_limit_x = True
 
+                # TODO:
+                # Commented out because does not work properly
+                # fix1 index is alway too high, needs reserach
                 # import FIX information
-                fix = fix_data.get(idx)
-                if fix:
-                    constraint = None
-                    type = fix['type']
-                    flags = fix['flags']
+                # fix = fix_data.get(idx)
+                # if fix:
+                #     constraint = None
+                #     type = fix['type']
+                #     flags = fix['flags']
 
-                    parent_idx = fix['fix1']
-                    parent_name = jointNames[parent_idx]
+                #     parent_idx = fix['fix1']
+                #     parent_name = jointNames[parent_idx]
 
-                    target_idx = fix['fix2']
-                    target_name = jointNames[target_idx]
+                #     target_idx = fix['fix2']
+                #     target_name = jointNames[target_idx]
 
-                    pose_bone = armature_ob.pose.bones.get(bone_name)
-                    pose_bone.bone.layers[1] = True
-                    pose_bone.bone.layers[0] = False
+                #     pose_bone = armature_ob.pose.bones.get(bone_name)
+                #     pose_bone.bone.layers[1] = True
+                #     pose_bone.bone.layers[0] = False
 
-                    useDrivers = False
-                    if useDrivers:
-                        if (type == 1):  # TARGET
-                            groupName = 'TARGET'
-                            boneGroup = armature_ob.pose.bone_groups.get(groupName)
-                            if not boneGroup:
-                                boneGroup = armature_ob.pose.bone_groups.new(name=groupName)
-                                boneGroup.color_set = 'THEME15'
-                            pose_bone.bone_group = boneGroup
-                            XY = bool(flags & 0b0001)  # fix order YZ
-                            XY = bool(flags & 0b0010)  # fix order ZY
-                            constraint = pose_bone.constraints.new('DAMPED_TRACK')
-                            constraint.name = 'Target'
-                            constraint.target = armature_ob
-                            constraint.subtarget = target_name
+                #     useDrivers = False
+                #     if useDrivers:
+                #         if (type == 1):  # TARGET
+                #             groupName = 'TARGET'
+                #             boneGroup = armature_ob.pose.bone_groups.get(groupName)
+                #             if not boneGroup:
+                #                 boneGroup = armature_ob.pose.bone_groups.new(name=groupName)
+                #                 boneGroup.color_set = 'THEME15'
+                #             pose_bone.bone_group = boneGroup
+                #             XY = bool(flags & 0b0001)  # fix order YZ
+                #             XY = bool(flags & 0b0010)  # fix order ZY
+                #             constraint = pose_bone.constraints.new('DAMPED_TRACK')
+                #             constraint.name = 'Target'
+                #             constraint.target = armature_ob
+                #             constraint.subtarget = target_name
 
-                        if (type == 2 and 0 == 1):  # SMOOTH
-                            NEGY = bool(flags & 0b0001)  # fix order NEGY
-                            NEGZ = bool(flags & 0b0010)  # fix order NEGZ
-                            POSY = bool(flags & 0b0011)  # fix order POSY
-                            POSZ = bool(flags & 0b0100)  # fix order POSZ
-                            pose_bone.bone.use_inherit_scale = False
-                            pose_bone.bone.use_inherit_rotation = False
+                #         if (type == 2 and 0 == 1):  # SMOOTH
+                #             NEGY = bool(flags & 0b0001)  # fix order NEGY
+                #             NEGZ = bool(flags & 0b0010)  # fix order NEGZ
+                #             POSY = bool(flags & 0b0011)  # fix order POSY
+                #             POSZ = bool(flags & 0b0100)  # fix order POSZ
+                #             pose_bone.bone.use_inherit_scale = False
+                #             pose_bone.bone.use_inherit_rotation = False
 
-                            constraint_parent = pose_bone.constraints.new('CHILD_OF')
-                            constraint_parent.name = 'Smooth Parent'
-                            constraint_parent.target = armature_ob
-                            constraint_parent.subtarget = parent_name
-                            constraint_parent.use_location_x = False
-                            constraint_parent.use_location_y = False
-                            constraint_parent.use_location_z = False
-                            matrix = constraint_parent.target.data.bones[constraint_parent.subtarget].matrix_local.inverted()
-                            constraint_parent.inverse_matrix = matrix
-                            constraint_parent.influence = .5
+                #             constraint_parent = pose_bone.constraints.new('CHILD_OF')
+                #             constraint_parent.name = 'Smooth Parent'
+                #             constraint_parent.target = armature_ob
+                #             constraint_parent.subtarget = parent_name
+                #             constraint_parent.use_location_x = False
+                #             constraint_parent.use_location_y = False
+                #             constraint_parent.use_location_z = False
+                #             matrix = constraint_parent.target.data.bones[constraint_parent.subtarget].matrix_local.inverted()
+                #             constraint_parent.inverse_matrix = matrix
+                #             constraint_parent.influence = .5
 
-                            constraint_child = pose_bone.constraints.new('CHILD_OF')
-                            constraint_child.name = 'Smooth Child'
-                            constraint_child.target = armature_ob
-                            constraint_child.subtarget = target_name
-                            constraint_child.use_location_x = False
-                            constraint_child.use_location_y = False
-                            constraint_child.use_location_z = False
-                            matrix = constraint_child.target.data.bones[constraint_child.subtarget].matrix_local.inverted()
-                            constraint_child.inverse_matrix = matrix
-                            constraint_child.influence = .5
-                        if (type == 2):  # SMOOTH
-                            groupName = 'SMOOTH'
-                            boneGroup = armature_ob.pose.bone_groups.get(groupName)
-                            if not boneGroup:
-                                boneGroup = armature_ob.pose.bone_groups.new(name=groupName)
-                                boneGroup.color_set = 'THEME14'
-                            pose_bone.bone_group = boneGroup
-                            driver = armature_ob.driver_add(f'pose.bones["{bone_name}"].rotation_quaternion')
-                            expression = '(mld.to_quaternion().inverted() @ mls.to_quaternion() @ mbs.to_quaternion() @ mls.to_quaternion().inverted() @ mld.to_quaternion()).slerp(((1, 0, 0, 0)), .5)'
-                            build_driver(driver, expression, 0, bone_name, target_name)
-                            build_driver(driver, expression, 1, bone_name, target_name)
-                            build_driver(driver, expression, 2, bone_name, target_name)
-                            build_driver(driver, expression, 3, bone_name, target_name)
+                #             constraint_child = pose_bone.constraints.new('CHILD_OF')
+                #             constraint_child.name = 'Smooth Child'
+                #             constraint_child.target = armature_ob
+                #             constraint_child.subtarget = target_name
+                #             constraint_child.use_location_x = False
+                #             constraint_child.use_location_y = False
+                #             constraint_child.use_location_z = False
+                #             matrix = constraint_child.target.data.bones[constraint_child.subtarget].matrix_local.inverted()
+                #             constraint_child.inverse_matrix = matrix
+                #             constraint_child.influence = .5
+                #         if (type == 2):  # SMOOTH
+                #             groupName = 'SMOOTH'
+                #             boneGroup = armature_ob.pose.bone_groups.get(groupName)
+                #             if not boneGroup:
+                #                 boneGroup = armature_ob.pose.bone_groups.new(name=groupName)
+                #                 boneGroup.color_set = 'THEME14'
+                #             pose_bone.bone_group = boneGroup
+                #             driver = armature_ob.driver_add(f'pose.bones["{bone_name}"].rotation_quaternion')
+                #             expression = '(mld.to_quaternion().inverted() @ mls.to_quaternion() @ mbs.to_quaternion() @ mls.to_quaternion().inverted() @ mld.to_quaternion()).slerp(((1, 0, 0, 0)), .5)'
+                #             build_driver(driver, expression, 0, bone_name, target_name)
+                #             build_driver(driver, expression, 1, bone_name, target_name)
+                #             build_driver(driver, expression, 2, bone_name, target_name)
+                #             build_driver(driver, expression, 3, bone_name, target_name)
 
             armature_ob.select_set(state=True)
 
@@ -1167,6 +1236,26 @@ class ImportHaydeeMesh(Operator, ImportHelper):
 # .motion importer
 # --------------------------------------------------------------------------------
 
+# Helper for commong logic
+def read_motion_bones(memData, boneCount, numFrames, TRACK_SIZE, KEY_SIZE, TRACK_OFFSET, KEY_OFFSET):
+    unpack_bone = struct.Struct('<32sI').unpack
+    unpack_key = struct.Struct('3f4f').unpack
+    bones, boneNames = dict(), []
+    for n in range(boneCount):
+        offset = TRACK_OFFSET + (TRACK_SIZE * n)
+        (name, firstKey) = unpack_bone(memData[offset:offset + TRACK_SIZE])
+        name = boneRenameBlender(readStrA_term(0, 32, memoryview(name))[0])
+        keys = []
+        for k in range(firstKey, firstKey + numFrames):
+            offset = KEY_OFFSET + (KEY_SIZE * k)
+            (x, y, z, qx, qz, qy, qw) = unpack_key(memData[offset:offset + KEY_SIZE])
+            keys.append((x, y, z, qx, qz, qy, qw))
+        bones[name] = keys
+        boneNames.append(name)
+    return (boneNames, bones)
+
+
+
 def read_motion(operator, context, filepath):
     armature = find_armature(operator, context)
     if not armature:
@@ -1174,36 +1263,61 @@ def read_motion(operator, context, filepath):
 
     with open(filepath, "rb") as a_file:
         data = a_file.read()
+    mview = memoryview(data)
 
-    SIGNATURE_SIZE = 44
-    KEY_SIZE = 28
-    INIT_INFO = 32
-    SIZE2 = 36
+    (entries, serialSize, assType) = struct.unpack('<ii6s', mview[20:34])
+    assType, sig = assType.decode("latin"), sig_check(mview)
+    propMap, numFrames = None, None
+    unpack_int = struct.Struct('<i').unpack
+    unpack_entry = struct.Struct('<32siiii').unpack
 
-    (signature, version, keyCount, boneCount, firstFrame, numFrames, dataSize) = \
-        struct.unpack('16sIIII4xII', data[0:SIGNATURE_SIZE])
-    signature = decodeText(signature)
-    print("Signature:", signature)
-    if signature != 'HD_MOTION':
-        print("Unrecognized signature: %s" % signature)
+    if (sig == Signature.HD_CHUNK and assType == 'motion'):
+        print('Signature:', Signature.HD_CHUNK.name)
+        propMap = dict(numFrames={'reader': lambda x: unpack_int(x)[0]},
+                       duration= {'reader': lambda x: unpack_int(x)[0]},
+                       numKeys=  {'reader': lambda x: unpack_int(x)[0]},
+                       numTracks={'reader': lambda x: unpack_int(x)[0]},
+                       numEvents={'reader': lambda x: unpack_int(x)[0]},
+                       keys=     {'reader': lambda x: True},
+                       tracks=   {'reader': lambda x: True},
+                       events=   {'reader': lambda x: False})
+
+        dataOffset = 28 + (entries * 48)
+
+        for x in range(1, entries):
+            sPos = 28 + (x * 48)
+            (name, size, offset, numSubs, subs) = unpack_entry(mview[sPos:sPos+48])
+            name = readStrA_term(0, 32, memoryview(name))[0]
+            propMap[name].update(dict(zip(['size', 'offset', 'numSubs', 'subs', 'hasValue'],[size, offset, numSubs, subs, size > 0])))
+
+        for key, value in propMap.items():
+            if (value.get("hasValue")):
+                (f, lSize, lOff) = (value['reader'], value['size'], value['offset'])
+                lOff = dataOffset + lOff
+                value["value"] = f(mview[lOff:lOff+lSize])
+
+        numFrames = propMap['numFrames']['value']
+        boneCount = propMap['numTracks']['value']
+        trackSize = int(propMap['tracks']['size'] / boneCount)
+        keySize = int(propMap['keys']['size'] / propMap['numKeys']['value'])
+        trackOffset = 28 + (entries * 48) + int(propMap['tracks']['offset'])
+        keyOffset = 28 + (entries * 48) + int(propMap['keys']['offset'])
+        (boneNames, bones) = read_motion_bones(mview, boneCount, numFrames, trackSize, keySize, trackOffset, keyOffset)
+
+    elif (sig == Signature.HD_MOTION):
+        print('Signature:', Signature.HD_MOTION.name)
+        KEY_SIZE = 28
+        TRACK_SIZE = 36
+
+        (keyCount, boneCount, firstFrame, duration, numFrames, dataSize) = struct.unpack('6I', data[20:44])
+        keyOffset = 44
+        trackOffset = 44 + int(KEY_SIZE * keyCount)
+        (boneNames, bones) = read_motion_bones(mview, boneCount, numFrames, TRACK_SIZE, KEY_SIZE, trackOffset, keyOffset)
+
+    else:
+        print("Unrecognized signature or asset type: [%s], %s" % (binascii.hexlify(mview[0:16]), assType))
         operator.report({'ERROR'}, "Unrecognized file format")
         return {'FINISHED'}
-
-    bones = {}
-    boneNames = []
-    for n in range(boneCount):
-        offset = SIGNATURE_SIZE + (KEY_SIZE * keyCount) + (SIZE2 * n)
-        (name, firstKey) = struct.unpack('32sI', data[offset:offset + SIZE2])
-        name = decodeText(name)
-        name = boneRenameBlender(name)
-
-        keys = []
-        for k in range(firstKey, firstKey + numFrames):
-            offset = SIGNATURE_SIZE + KEY_SIZE * k
-            (x, y, z, qx, qz, qy, qw) = struct.unpack('3f4f', data[offset:offset + KEY_SIZE])
-            keys.append((x, y, z, qx, qz, qy, qw))
-        bones[name] = keys
-        boneNames.append(name)
 
     boneNames.reverse()
 
@@ -1997,92 +2111,114 @@ def read_material(operator, context, filepath):
             bpy.context.view_layer.objects.active.type != 'MESH':
         return {'FINISHED'}
 
+    class MatType(Enum):
+        OPAQUE = 0
+        MASK = 1
+        HAIR = 2
+
+    with open(filepath, "rb") as a_file:
+        data = a_file.read()
+    mview = memoryview(data)
+
     with ProgressReport(context.window_manager) as progReport:
         with ProgressReportSubstep(progReport, 4, "Importing outfit", "Finish Importing outfit") as progress:
 
-            data = None
-            bytes = min(32, os.path.getsize(filepath))
-            with open(filepath, "rb") as a_file:
-                raw = a_file.read(bytes)
+            propMap = None
+            sig = sig_check(mview)
 
-            encoding = "utf-8-sig"
-            if raw.startswith(codecs.BOM):
-                encoding = "utf-16"
+            if (sig == Signature.HD_CHUNK):
+                print("Signature: %s" % sig.name)
 
-            with open(filepath, "r", encoding=encoding) as a_file:
-                data = io.StringIO(a_file.read())
+                unpack_int = struct.Struct('<I').unpack
+                unpack_float = struct.Struct('<f').unpack
+                unpack_entry = struct.Struct('<32siiii').unpack
+                (entries, serialSize, assType) = struct.unpack('<ii8s', mview[20:36])
 
-            line = stripLine(data.readline())
-            line_split = line.split()
-            line_start = line_split[0]
-            signature = line_start
+                if (assType.decode('latin') != 'material'):
+                    print("Unrecognized signature or asset type: [%s], %s" % (binascii.hexlify(mview[0:16]), assType))
+                    operator.report({'ERROR'}, "Unrecognized file format")
+                    return {'FINISHED'}
 
-            print('Signature:', signature)
-            if signature != 'HD_DATA_TXT':
-                print("Unrecognized signature: %s" % signature)
+                propMap = dict(type={       'reader': lambda x: unpack_int(x)[0]},
+                               twoSided={   'reader': lambda x: unpack_int(x)[0]},
+                               width={      'reader': lambda x: unpack_float(x)[0]},
+                               height={     'reader': lambda x: unpack_float(x)[0]},
+                               autouv={     'reader': lambda x: unpack_int(x)[0]},
+                               diffuseMap={ 'reader': lambda x: readStrW(0, x)[0]},
+                               normalMap={  'reader': lambda x: readStrW(0, x)[0]},
+                               specularMap={'reader': lambda x: readStrW(0, x)[0]},
+                               emissionMap={'reader': lambda x: readStrW(0, x)[0]},
+                               censorMap={  'reader': lambda x: readStrW(0, x)[0]},
+                               maskMap={    'reader': lambda x: readStrW(0, x)[0]},
+                               surface={    'reader': lambda x: readStrA_term(0, 64, x)[0]},
+                               speculars={  'reader': lambda x: struct.unpack('<3f', x)})
+                dataOffset = 28 + (entries * 48)
+
+                for x in range(1, entries):
+                    sPos = 28 + (x * 48)
+                    (name, size, offset, numSubs, subs) = unpack_entry(mview[sPos:sPos+48])
+                    name = readStrA_term(0, 32, name)[0]
+                    propMap[name].update(dict(zip(['size', 'offset', 'numSubs', 'subs', 'hasValue'],[size, offset, numSubs, subs, size > 0])))
+
+                for value in propMap.values():
+                    if (value.get("hasValue")):
+                        (f, lSize, lOff) = (value['reader'], value['size'], value['offset'])
+                        lOff = dataOffset + lOff
+                        value["value"] = f(mview[lOff:lOff+lSize])
+
+            elif (sig == Signature.HD_DATA_TXT or sig == Signature.HD_DATA_TXT_BOM):
+                encoding = "utf-8-sig" if (sig == Signature.HD_DATA_TXT) else "utf-16-le"
+                mview = io.TextIOWrapper(BytesIO(data), encoding=encoding)
+                print("Signature: %s" % sig.name)
+
+                propMap = dict( type={'reader':          lambda s: MatType[s]},
+                                twoSided={'reader':      lambda s: s.lower() == 'true'},
+                                width={'reader':         lambda s: float(s)},
+                                height={'reader':        lambda s: float(s)},
+                                autouv={'reader':        lambda s: int(s)},
+                                diffuseMap = {'reader':  lambda s: s.strip('"')},
+                                normalMap = {'reader':   lambda s: s.strip('"')},
+                                specularMap = {'reader': lambda s: s.strip('"')},
+                                emissionMap = {'reader': lambda s: s.strip('"')},
+                                censorMap = {'reader':   lambda s: s.strip('"')},
+                                maskMap = {'reader':     lambda s: s.strip('"')},
+                                surface = {'reader':     lambda s: s},
+                                speculars = {'reader':   lambda s: tuple([float(val) for val in s.split()])})
+
+                line = mview.readline()
+                c = 0
+                while (line != '{' and c < 50):
+                    line = mview.readline().strip()
+                    c = c+1
+                c = 0
+                while (line != '}' and c < 50):
+                    c = c+1
+                    line = mview.readline().strip().strip(';')
+                    if (line == '}'): break
+                    key = line[0:line.index(' ')]
+                    value = line[line.index(' ')+1:]
+                    propMap[key]["value"] = propMap[key]["reader"](value)
+            else:
+                print("Unrecognized signature or asset type: %s" % (binascii.hexlify(mview[0:16])))
                 operator.report({'ERROR'}, "Unrecognized file format")
                 return {'FINISHED'}
 
-            level = 0
-            outfitName = None
-
-            diffuseMap = None
-            normalMap = None
-            specularMap = None
-            emissionMap = None
-            blend = None
-
-            # steps = len(data.getvalue().splitlines()) - 1
-            progress.enter_substeps(1, "Parse Data")
-            # Read model data
-            for lineData in data:
-                line = stripLine(lineData)
-                line_split = line.split(maxsplit=1)
-                line_start = None
-                i = len(line_split)
-                if (i == 0):
-                    continue
-                line_start = line_split[0]
-                if (line_start in ('{')):
-                    level += 1
-                if (line_start in ('}')):
-                    level -= 1
-                    contextName = None
-
-                # textures
-                if (line_start == 'diffuseMap' and level == 1):
-                    diffuseMap = line_split[1].replace('"', '')
-                if (line_start == 'normalMap' and level == 1):
-                    normalMap = line_split[1].replace('"', '')
-                if (line_start == 'specularMap' and level == 1):
-                    specularMap = line_split[1].replace('"', '')
-                if (line_start == 'emissionMap' and level == 1):
-                    emissionMap = line_split[1].replace('"', '')
-                if (line_start == 'type' and level == 1):
-                    blend = line_split[1].replace('"', '')
-
+            # Ready to create material
             obj = bpy.context.view_layer.objects.active
             basedir = os.path.dirname(filepath)
             matName = os.path.basename(filepath)
             matName = os.path.splitext(matName)[0]
 
-            if diffuseMap:
-                diffuseMap = haydeeFilepath(basedir, diffuseMap)
-            if normalMap:
-                normalMap = haydeeFilepath(basedir, normalMap)
-            if specularMap:
-                specularMap = haydeeFilepath(basedir, specularMap)
-            if emissionMap:
-                emissionMap = haydeeFilepath(basedir, emissionMap)
+            for key, value in propMap.items():
+                if ('Map') in key:
+                    vMap = value.get("value")
+                    if (vMap):
+                        value["value"] = material_path(basedir, vMap)
 
-            useAlpha = False
-            if blend == 'MASK':
-                useAlpha = True
-
-            create_material(obj, useAlpha, matName, diffuseMap, normalMap, specularMap, emissionMap)
+            useAlpha = (propMap.get("type") and propMap["type"]["value"] == 1)
+            create_material(obj, useAlpha, matName, propMap['diffuseMap'].get('value'), propMap['normalMap'].get('value'), propMap['specularMap'].get('value'), propMap['emissionMap'].get('value'))
 
     return {'FINISHED'}
-
 
 class ImportHaydeeMaterial(Operator, ImportHelper):
     bl_idname = "haydee_importer.material"
@@ -2113,6 +2249,26 @@ def haydeeFilepath(mainpath, filepath):
             idx = basedir.lower().find(r'\outfit')
             path = basedir[:idx]
             path = os.path.join(path, filepath)
+    return path
+
+def material_path(mainpath, filepath):
+    path = filepath
+    if not os.path.isabs(filepath):
+        if (filepath.rfind('\\') < 0):
+            # Current Folder
+            path = os.path.join(mainpath, filepath)
+        else:
+            newMain = None
+            oldMain = mainpath
+            c = 0
+            while (True and c < 50):
+                newMain = os.path.split(oldMain)[0]
+                newFull = os.path.join(newMain, filepath)
+                if (os.path.isfile(newFull) or newMain == oldMain):
+                    path = newFull
+                    break
+                oldMain = newMain
+                c = c + 1
     return path
 
 
