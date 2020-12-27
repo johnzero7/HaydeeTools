@@ -1206,6 +1206,8 @@ def read_motion(operator, context, filepath):
     for frame in range(1, frameCount + 1):
         wm.progress_update(frame - 1)
         context.scene.frame_current = frame
+        #Blender 2.91 BUG. needs to set pose mode after changing frame
+        bpy.ops.object.mode_set(mode='POSE')
         for name in boneNames:
             bone_name = name
             if not (bone_name in armature.data.bones):
@@ -1375,6 +1377,8 @@ def read_dmotion(operator, context, filepath):
             for frame in range(1, numFrames + 1):
                 wm.progress_update(frame - 1)
                 context.scene.frame_current = frame
+                # Blender 2.91 BUG. needs to set pose mode after changing frame
+                bpy.ops.object.mode_set(mode='POSE')
                 for name in bones.keys():
                     bone_name = name
                     if not (bone_name in armature.data.bones):
