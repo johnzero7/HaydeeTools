@@ -47,6 +47,7 @@ import bpy
 
 
 class UpdaterPreferences(bpy.types.AddonPreferences):
+    """Updater Class."""
 
     bl_idname = __package__
 
@@ -56,26 +57,26 @@ class UpdaterPreferences(bpy.types.AddonPreferences):
         description="If enabled, auto-check for updates using an interval",
         default=False,
     )
-    updater_intrval_months: bpy.props.IntProperty(
+    updater_interval_months: bpy.props.IntProperty(
         name='Months',
         description="Number of months between checking for updates",
         default=0,
         min=0
     )
-    updater_intrval_days: bpy.props.IntProperty(
+    updater_interval_days: bpy.props.IntProperty(
         name='Days',
         description="Number of days between checking for updates",
         default=7,
         min=0,
     )
-    updater_intrval_hours: bpy.props.IntProperty(
+    updater_interval_hours: bpy.props.IntProperty(
         name='Hours',
         description="Number of hours between checking for updates",
         default=0,
         min=0,
         max=23
     )
-    updater_intrval_minutes: bpy.props.IntProperty(
+    updater_interval_minutes: bpy.props.IntProperty(
         name='Minutes',
         description="Number of minutes between checking for updates",
         default=0,
@@ -84,6 +85,7 @@ class UpdaterPreferences(bpy.types.AddonPreferences):
     )
 
     def draw(self, context):
+        """Draw Method."""
         addon_updater_ops.update_settings_ui(self, context)
 
 #
@@ -126,6 +128,7 @@ registerClasses, unregisterClasses = bpy.utils.register_classes_factory(classesT
 
 
 def register():
+    """Register addon classes."""
     HaydeeMenuIcon.registerCustomIcon()
     registerClasses()
     HaydeeExporter.register()
@@ -134,6 +137,7 @@ def register():
 
 
 def unregister():
+    """Unregister addon classes."""
     addon_updater_ops.unregister()
     HaydeeExporter.unregister()
     HaydeeImporter.unregister()
