@@ -5,7 +5,6 @@ import struct
 import os
 import io
 import binascii
-import chardet
 import codecs
 from enum import Enum
 from math import pi
@@ -28,15 +27,6 @@ from bpy_extras.io_utils import ImportHelper
 from bpy.props import StringProperty, BoolProperty, EnumProperty
 from bpy.types import Operator
 from mathutils import Quaternion, Vector, Matrix
-
-
-def get_file_encoding(filepath):
-    data = None
-    encoding = None
-    with open(filepath, "rb") as a_file:
-        encoding = chardet.detect(a_file.read(32))
-
-    return encoding['encoding']
 
 
 # Global enum for asset type
@@ -1814,7 +1804,6 @@ def read_outfit(operator, context, filepath, file_format):
 
             data = None
             encoding = "utf-8-sig"
-            encoding = get_file_encoding(filepath)
             with open(filepath, "r", encoding=encoding, errors="surrogateescape") as a_file:
                 data = io.StringIO(a_file.read())
 
