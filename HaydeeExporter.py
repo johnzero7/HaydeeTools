@@ -375,7 +375,7 @@ def write_dmesh(operator, context, filepath, export_skeleton,
                     continue
 
                 if len(materials) > 1:
-                    group_name = ob.name + '_' + mat.name
+                    group_name = ob.name + '_' + materials[current_material_index].name
                 else:
                     group_name = ob.name
                 regex = re.compile('^[0-9]')
